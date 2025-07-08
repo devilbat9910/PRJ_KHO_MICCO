@@ -23,6 +23,16 @@ function getDropdownData() {
   }
 }
 
+// Bridge function for the new lot number suggestion service
+function suggestLotNumber(productShortName, factory, dateStr) {
+  try {
+    return suggestLotNumber(productShortName, factory, dateStr);
+  } catch (e) {
+    Logger.log(`Lỗi trong suggestLotNumber (logic.js): ${e.message}`);
+    return ""; // Return empty string on error
+  }
+}
+
 //================================================================
 // SECTION: XỬ LÝ GIAO DỊCH VÀ CẬP NHẬT KHO
 //================================================================

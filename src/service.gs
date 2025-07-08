@@ -37,8 +37,38 @@ function getInventoryView() {
  * Hàm này sẽ thay thế hàm getDropdownData cũ.
  */
 function getMasterDataForForm() {
-  // This now correctly calls the function from db.gs
-  return getCategoryData();
+  const categories = getCategoryData();
+  // Return only the necessary parts for the initial dropdown population
+  return {
+    products: categories.productDropdown,
+    factories: categories.factories,
+    warehouses: categories.warehouses
+  };
+}
+
+function suggestLotNumber(productShortName, factory, dateStr) {
+  if (!productShortName || !dateStr) {
+    return ""; // Return empty if essential info is missing
+  }
+  
+  const categories = getCategoryData();
+  const date = new Date(dateStr);
+  const month = ('0' + (date.getMonth() + 1)).slice(-2);
+  const year = date.getFullYear().toString().slice(-2);
+
+  // Special rule for Quang Ninh
+  if (factory === 'PX Quảng Ninh') {
+    factory = 'PX Quảng Ninh HG'; // Temporary mapping to find the HG code
+  }
+
+  const match = categories.allData.find(p => p.shortName === productShortName && p.factory === factory);
+  
+  let lotCode = productShortName.replace(/[\s-]/g, ''); // Default if no specific code found
+  if (match && match.lotCode) {
+    lotCode = match.lotCode;
+  }
+  
+  return `${month}${year}${lotCode}`;
 }
 
 /**

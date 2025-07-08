@@ -27,7 +27,7 @@
     </div>
     <div class="form-group">
       <label for="quyCach">Quy cách (D32, B25...)</label>
-      <input type="text" class="form-control" id="quyCach" onkeyup="suggestLoSanXuat()">
+      <input type="text" class="form-control" id="quyCach">
     </div>
     <div class="form-group">
       <label for="soLuong">Số Lượng</label>
@@ -40,6 +40,10 @@
     <div class="form-group">
       <label for="ngaySanXuat">Ngày Sản Xuất</label>
       <input type="date" class="form-control" id="ngaySanXuat" onchange="suggestLoSanXuat()">
+    </div>
+    <div class="form-group">
+      <label for="phanXuong">Đơn Vị Sản Xuất</label>
+      <select class="form-control" id="phanXuong" onchange="suggestLoSanXuat()"><option value="" disabled selected>Đang tải...</option></select>
     </div>
     <div class="form-group">
       <label for="tinhTrangChatLuong">Tình Trạng Chất Lượng</label>
@@ -235,17 +239,29 @@
 
     function suggestLoSanXuat() {
       const tenSanPhamSelect = document.getElementById('tenSanPham');
-      const tenSanPhamText = tenSanPhamSelect.options[tenSanPhamSelect.selectedIndex].text; // Lấy text (tên viết tắt)
+      const tenSanPhamText = tenSanPhamSelect.options[tenSanPhamSelect.selectedIndex].text; // Tên viết tắt
+      
+      const phanXuongSelect = document.getElementById('phanXuong');
+      const phanXuongText = phanXuongSelect.value;
+
       const ngaySanXuat = document.getElementById('ngaySanXuat').value;
 
-      if (tenSanPhamText && ngaySanXuat && tenSanPhamText !== '-- Chọn --') {
-        const date = new Date(ngaySanXuat);
-        const month = ('0' + (date.getMonth() + 1)).slice(-2);
-        const year = date.getFullYear().toString().slice(-2);
-        // Sửa lỗi: Không loại bỏ ký tự đặc biệt để giữ đúng tên viết tắt như NTLĐ2
-        const spCode = tenSanPhamText;
-        
-        document.getElementById('loSanXuat').value = `Lô ${month}${year} ${spCode}`;
+      if (tenSanPhamText && tenSanPhamText !== '-- Chọn --' && phanXuongText && ngaySanXuat) {
+        // Vô hiệu hóa input trong khi chờ
+        const loSanXuatInput = document.getElementById('loSanXuat');
+        loSanXuatInput.disabled = true;
+        loSanXuatInput.value = "Đang tạo gợi ý...";
+
+        google.script.run
+          .withSuccessHandler(function(suggestedLot) {
+            loSanXuatInput.value = suggestedLot;
+            loSanXuatInput.disabled = false;
+          })
+          .withFailureHandler(function(err) {
+            loSanXuatInput.value = "Lỗi tạo gợi ý";
+            loSanXuatInput.disabled = false;
+          })
+          .suggestLotNumber(tenSanPhamText, phanXuongText, ngaySanXuat);
       }
     }
   </script>

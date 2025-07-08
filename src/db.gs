@@ -49,20 +49,27 @@ function getCategoryData() {
     return { products: [], factories: [], warehouses: [] };
   }
 
-  const dataRange = sheet.getRange(`A2:D${lastRow}`);
+  const dataRange = sheet.getRange(`A2:E${lastRow}`); // Read up to column E
   const data = dataRange.getValues();
 
   const products = data
-    .map(row => ({ value: row[0], text: row[1] })) // Cột A: Tên đầy đủ, Cột B: Tên viết tắt
-    .filter(p => p.value && p.text);
+    .map(row => ({
+      fullName: row[0],
+      shortName: row[1],
+      factory: row[2],
+      warehouse: row[3],
+      lotCode: row[4]  // Column E: Mã Lô
+    }))
+    .filter(p => p.fullName);
 
-  const factories = data
-    .map(row => row[2]) // Cột C: Phân xưởng
-    .filter((value, index, self) => self.indexOf(value) === index && value); // Lọc duy nhất và loại bỏ rỗng
+  const productDropdown = data.map(p => ({ value: p.fullName, text: p.shortName })).filter(p => p.value && p.text);
+  const factories = [...new Set(data.map(p => p.factory))].filter(String);
+  const warehouses = [...new Set(data.map(p => p.warehouse))].filter(String);
 
-  const warehouses = data
-    .map(row => row[3]) // Cột D: Kho
-    .filter((value, index, self) => self.indexOf(value) === index && value); // Lọc duy nhất và loại bỏ rỗng
-
-  return { products, factories, warehouses };
+  return {
+    allData: products, // Pass all data to service layer
+    productDropdown,
+    factories,
+    warehouses
+  };
 }
