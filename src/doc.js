@@ -69,48 +69,54 @@ function createOrOpenDocumentation() {
  */
 function getDocumentationContent() {
   return `
-# TÀI LIỆU VẬN HÀNH: HỆ THỐNG QUẢN LÝ KHO (MICCO)
+# TÀI LIỆU VẬN HÀNH: HỆ THỐNG QUẢN LÝ KHO (MICCO) - v2.0
 
-## 1. KIẾN TRÚC HỆ THỐNG (Mô hình AllInSheets)
+## 1. KIẾN TRÚC HỆ THỐNG (Mô hình 3 Tầng)
 
-Hệ thống được tái cấu trúc theo mô hình 3 tầng để đảm bảo hiệu năng và khả năng bảo trì.
+Hệ thống được cấu trúc theo mô hình 3 tầng để đảm bảo hiệu năng, tính toàn vẹn dữ liệu và khả năng bảo trì.
 
 ### Cấu trúc Google Sheets
-* **DANH MUC:** Sheet **quan trọng nhất**, do người dùng quản lý. Đây là nơi định nghĩa toàn bộ danh sách cho các ô lựa chọn và các quy tắc nghiệp vụ.
-* **LOG_GIAO_DICH_tbl:** Bảng dữ liệu thô, lưu lại toàn bộ lịch sử giao dịch nhập/xuất. Dữ liệu ở đây là bất biến.
-* **vw_tonkho:** Một "View" chỉ đọc, tự động dùng hàm QUERY để tổng hợp tồn kho từ sheet LOG_GIAO_DICH_tbl.
-* **Trang Chính:** Giao diện làm việc chính.
+* **DANH MUC:** Sheet **quan trọng nhất**, do người dùng quản lý. Đây là nơi định nghĩa toàn bộ danh sách sản phẩm, kho, phân xưởng và các quy tắc tạo mã.
+* **LOG_GIAO_DICH_tbl:** Bảng dữ liệu thô, lưu lại **toàn bộ** lịch sử giao dịch. Dữ liệu ở đây là bất biến và là nguồn chân lý duy nhất.
+* **vw_tonkho:** Một "View" (chỉ đọc), tự động dùng hàm QUERY để tổng hợp tồn kho tức thời từ sheet LOG_GIAO_DICH_tbl.
+* **Trang Chính:** Giao diện làm việc chính, hiển thị dữ liệu và chứa bảng nhập liệu thủ công.
 
 ### Cấu trúc Apps Script
-* **Config.gs:** Chứa các biến cấu hình và hàm tạo menu.
-* **db.gs:** Tầng truy cập dữ liệu, chỉ chứa hàm đọc/ghi vào các sheet.
-* **service.gs:** Tầng dịch vụ, chứa logic nghiệp vụ (tạo SKU, gợi ý lô...).
-* **logic.js:** Tầng trung gian, kết nối giao diện với tầng dịch vụ.
+* **Config.gs:** Chứa các biến cấu hình (tên sheet, dải ô) và hàm tạo menu, thiết lập cấu trúc.
+* **db.gs:** Tầng Truy cập Dữ liệu. Chứa các hàm **duy nhất** được phép đọc/ghi trực tiếp vào Google Sheets.
+* **service.gs:** Tầng Dịch vụ. Chứa **toàn bộ logic nghiệp vụ** (xử lý giao dịch, tạo SKU, gợi ý lô...).
+* **logic.js:** Tầng Logic Giao diện. Đóng vai trò cầu nối, gọi các hàm từ tầng dịch vụ để đáp ứng yêu cầu từ giao diện.
 * **doc.js:** (File này) Chứa logic tạo tài liệu hướng dẫn.
-* **FormNhapLieu.html:** Giao diện người dùng.
+* **FormNhapLieu.html:** Giao diện người dùng (sidebar).
 
-## 2. QUY TẮC VẬN HÀNH BẮT BUỘC
-
-### Quản Lý Danh Mục (Sheet "DANH MUC")
-Đây là nơi duy nhất để quản lý các danh sách lựa chọn.
-
-* **Cột A (Sản phẩm):** Tên đầy đủ của sản phẩm.
-* **Cột B (Tên viết tắt):** Tên ngắn gọn để hiển thị trên form.
-* **Cột C (Phân xưởng):** Tên đơn vị sản xuất.
-* **Cột D (Kho):** Tên kho lưu trữ.
-* **Cột E (Mã Lô):** **CỰC KỲ QUAN TRỌNG.** Đây là ký hiệu để hệ thống tạo gợi ý Lô Sản Xuất.
+## 2. QUY TRÌNH VẬN HÀNH
 
 ### Quy Tắc Gợi Ý Lô Sản Xuất
-Hệ thống sẽ tự động tạo gợi ý Lô Sản Xuất khi người dùng chọn **Tên Sản Phẩm**, **Ngày Sản Xuất** và **Đơn Vị Sản Xuất**.
-
+Hệ thống sẽ tự động tạo gợi ý Lô Sản Xuất khi người dùng chọn **Tên Sản Phẩm**, **Ngày Sản Xuất** và **Đơn Vị Sản Xuất** trên form.
 * **Công thức gợi ý:** \`[MMYY][Mã Lô]\`
-* **Ví dụ:**
-    * Nếu Ngày sản xuất là **07/2025** và "Mã Lô" (cột E) tương ứng là **"LĐ2"**.
-    * Hệ thống sẽ gợi ý: **0725LĐ2**
+* **Ví dụ:** Nếu Ngày sản xuất là **07/2025** và "Mã Lô" (cột E) tương ứng là **"LĐ2"**, hệ thống sẽ gợi ý: **0725LĐ2**.
 
-### Các Trường Hợp Đặc Biệt
-* **PX Quảng Ninh:** Để hệ thống gợi ý đúng mã lô **AFHG**, tại dòng sản phẩm ANFO của PX Quảng Ninh, bạn cần điền vào cột "Phân xưởng" là **"PX Quảng Ninh HG"** và cột "Mã Lô" là **"AFHG"**.
-* **ANFO/AF Nhập Tay:** Hệ thống vẫn sẽ đưa ra gợi ý dựa trên các quy tắc trên. Tuy nhiên, người dùng có thể **hoàn toàn bỏ qua gợi ý** và tự nhập tay Lô Sản Xuất theo quy cách nghiệm thu riêng.
+### Quy Tắc Tạo Mã SKU (INDEX)
+Mã SKU được tự động tạo cho mỗi giao dịch để định danh duy nhất.
+* **Công thức SKU:** \`[Mã Sản Phẩm]-[Quy Cách]-[ddMMyy]-[Mã Phân Xưởng]\`
+* **Ví dụ:** \`LĐ2-NA-250724-ĐT\`
+* **Lưu ý:**
+    * **[Mã Sản Phẩm]:** Ưu tiên lấy từ cột "Mã Lô" (cột E), nếu trống sẽ lấy "Tên viết tắt" (cột B).
+    * **[Quy Cách]:** Lấy từ form, nếu trống sẽ là "NA".
+    * **[Mã Phân Xưởng]:** Được ánh xạ từ tên phân xưởng (ví dụ: 'Px Đông Triều' -> 'ĐT').
+
+### Trường Hợp Đặc Biệt: Sản phẩm ANFO
+Để xử lý linh hoạt mã ANFO cho các phân xưởng khác nhau, hệ thống sử dụng một placeholder đặc biệt.
+* **Cách dùng:** Trong sheet "DANH MUC", tại cột "Mã Lô" (cột E) của sản phẩm ANFO, hãy điền giá trị có chứa \`{PX}\`.
+* **Ví dụ:** Điền **\`AF{PX}\`** vào cột "Mã Lô".
+* **Kết quả:** Khi người dùng chọn "Px Cẩm Phả", hệ thống sẽ tự động thay thế \`{PX}\` bằng "CP", tạo ra mã sản phẩm là **AFCP** để dùng trong SKU.
+
+### Xử Lý Giao Dịch
+* **Nhập:** Ghi nhận số lượng dương.
+* **Xuất:** Tự động ghi nhận số lượng âm.
+* **Điều chuyển:** Tự động tạo 2 dòng trong log:
+    * 1. Một dòng **xuất kho** (số lượng âm) từ kho đi.
+    * 2. Một dòng **nhập kho** (số lượng dương) vào kho đến.
 
 ## 3. THIẾT LẬP BAN ĐẦU
 Để thiết lập các sheet hệ thống (\`LOG_GIAO_DICH_tbl\`, \`vw_tonkho\`), từ menu chọn:

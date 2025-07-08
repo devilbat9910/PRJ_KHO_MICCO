@@ -1,59 +1,42 @@
 ### 🔄 Project Awareness & Context
-- **Always read `PLANNING.md`** at the start of a new conversation to understand the project's architecture, goals, style, and constraints.
-- **Check `TASK.md`** before starting a new task. If the task isn’t listed, add it with a brief description and today's date.
-- **Use consistent naming conventions, file structure, and architecture patterns** as described in `PLANNING.md`.
-- **Use venv_linux** (the virtual environment) whenever executing Python commands, including for unit tests.
+- **Always read `PLANNING.md`** at the start of a new conversation to understand the project's architecture, goals, and data structure.
+- **Check `TASK.md`** before starting a new task. If the task isn’t listed, add it with a brief description.
+- **Refer to `src/doc.js`** for detailed operational documentation and business logic rules.
 
-### 🧱 Code Structure & Modularity
-- **Never create a file longer than 500 lines of code.** If a file approaches this limit, refactor by splitting it into modules or helper files.
-- **Organize code into clearly separated modules**, grouped by feature or responsibility.
-  For agents this looks like:
-    - `agent.py` - Main agent definition and execution logic 
-    - `tools.py` - Tool functions used by the agent 
-    - `prompts.py` - System prompts
-- **Use clear, consistent imports** (prefer relative imports within packages).
-- **Use clear, consistent imports** (prefer relative imports within packages).
-- **Use python_dotenv and load_env()** for environment variables.
-
-### 🧪 Testing & Reliability
-- **Always create Pytest unit tests for new features** (functions, classes, routes, etc).
-- **After updating any logic**, check whether existing unit tests need to be updated. If so, do it.
-- **Tests should live in a `/tests` folder** mirroring the main app structure.
-  - Include at least:
-    - 1 test for expected use
-    - 1 edge case
-    - 1 failure case
+### 🧱 Code Structure & Modularity (Google Apps Script)
+- **Follow the existing 3-layer architecture:**
+  - **`db.gs` (Data Layer):** Only for direct interaction with Google Sheets (reading/writing cell values). No business logic.
+  - **`service.gs` (Service Layer):** Contains all business logic (calculations, data processing, generating SKUs, etc.). Does not interact directly with Sheets.
+  - **`logic.js` (Bridge/UI Layer):** Acts as a bridge connecting the HTML frontend (`FormNhapLieu.html`) to the `service.gs`. Contains functions called directly by `google.script.run`.
+  - **`config.js`:** For global constants (sheet names, menu items) and one-time setup functions (`onOpen`, `setupInitialStructure`).
+- **Keep files focused on their layer.** Do not mix business logic in the `db.gs` or Sheet interactions in `service.gs`.
+- **Use clear, descriptive function names** that indicate their purpose and layer (e.g., `db_getCategoryData`, `service_processTransaction`).
 
 ### ✅ Task Completion
-- **Mark completed tasks in `TASK.md`** immediately after finishing them.
-- Add new sub-tasks or TODOs discovered during development to `TASK.md` under a “Discovered During Work” section.
+- **Mark completed tasks in `TASK.md`** immediately after finishing them by checking the box `[x]`.
+- Add new sub-tasks or TODOs discovered during development to `TASK.md` under a "Discovered During Work" section.
 
-### 📎 Style & Conventions
-- **Use Python** as the primary language.
-- **Follow PEP8**, use type hints, and format with `black`.
-- **Use `pydantic` for data validation**.
-- Use `FastAPI` for APIs and `SQLAlchemy` or `SQLModel` for ORM if applicable.
-- Write **docstrings for every function** using the Google style:
-  ```python
-  def example():
-      """
-      Brief summary.
-
-      Args:
-          param1 (type): Description.
-
-      Returns:
-          type: Description.
-      """
+### 📎 Style & Conventions (Google Apps Script)
+- **Use JavaScript (ES5 compatible)** as the primary language for `.gs` and `.js` files.
+- **Use `@OnlyCurrentDoc`** at the top of every `.gs` and `.js` file to ensure the script is bound to the spreadsheet.
+- **Use `const` for constants** (like sheet names) and `let` for variables.
+- **Write JSDoc comments for every function** explaining its purpose, parameters (`@param`), and return values (`@returns`).
+  ```javascript
+  /**
+   * Brief summary of the function.
+   * @param {string} param1 - Description of the first parameter.
+   * @param {object} param2 - Description of the second parameter.
+   * @returns {boolean} Description of the return value.
+   */
+  function exampleFunction(param1, param2) {
+    // ... function logic
+  }
   ```
-
-### 📚 Documentation & Explainability
-- **Update `README.md`** when new features are added, dependencies change, or setup steps are modified.
-- **Comment non-obvious code** and ensure everything is understandable to a mid-level developer.
-- When writing complex logic, **add an inline `# Reason:` comment** explaining the why, not just the what.
+- **Use `SpreadsheetApp.getUi()`** for user-facing alerts and dialogs.
+- **Use `Logger.log()`** for debugging; avoid using `console.log()` which doesn't work in all Apps Script contexts.
 
 ### 🧠 AI Behavior Rules
 - **Never assume missing context. Ask questions if uncertain.**
-- **Never hallucinate libraries or functions** – only use known, verified Python packages.
-- **Always confirm file paths and module names** exist before referencing them in code or tests.
-- **Never delete or overwrite existing code** unless explicitly instructed to or if part of a task from `TASK.md`.
+- **Always confirm sheet names and cell ranges** by checking `config.js` or asking before writing code that interacts with them.
+- **Do not modify the `LOG_GIAO_DICH_tbl` sheet directly.** All data should be appended via the `db.addTransactionToLog()` function.
+- **Never delete or overwrite existing code** unless explicitly instructed to or as part of a refactoring task from `TASK.md`.

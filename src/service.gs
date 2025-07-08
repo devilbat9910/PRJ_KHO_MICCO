@@ -38,7 +38,7 @@ function getInventoryView() {
  */
 function getMasterDataForForm() {
   const categories = getCategoryData();
-  // Return only the necessary parts for the initial dropdown population
+  // Trả về dữ liệu đã được xử lý bởi hàm getCategoryData mới
   return {
     products: categories.productDropdown,
     factories: categories.factories,
@@ -46,26 +46,30 @@ function getMasterDataForForm() {
   };
 }
 
-function suggestLotNumber(productShortName, factory, dateStr) {
-  if (!productShortName || !dateStr) {
-    return ""; // Return empty if essential info is missing
+function suggestLotNumber(productName, factory, dateStr) {
+  if (!productName || !dateStr || !factory) {
+    return "";
   }
-  
+
   const categories = getCategoryData();
-  const date = new Date(dateStr);
-  const month = ('0' + (date.getMonth() + 1)).slice(-2);
-  const year = date.getFullYear().toString().slice(-2);
+  const productInfo = categories.productMap[productName];
 
-  // Special rule for Quang Ninh
-  if (factory === 'PX Quảng Ninh') {
-    factory = 'PX Quảng Ninh HG'; // Temporary mapping to find the HG code
+  if (!productInfo || !productInfo.lotCode) {
+    // Fallback to shortName if lotCode is missing
+    return productInfo ? productInfo.shortName : "";
   }
 
-  const match = categories.allData.find(p => p.shortName === productShortName && p.factory === factory);
+  const date = new Date(dateStr);
+  const month = ('0' + (date.getUTCMonth() + 1)).slice(-2);
+  const year = date.getUTCFullYear().toString().slice(-2);
   
-  let lotCode = productShortName.replace(/[\s-]/g, ''); // Default if no specific code found
-  if (match && match.lotCode) {
-    lotCode = match.lotCode;
+  let lotCode = productInfo.lotCode;
+
+  // Handle ANFO special rule
+  if (lotCode.includes('{PX}')) {
+    const factoryMap = { 'Px Đông Triều': 'ĐT', 'Px Cẩm Phả': 'CP', 'Px Quảng Ninh': 'QN' };
+    const factoryCode = factoryMap[factory] || '';
+    lotCode = lotCode.replace('{PX}', factoryCode);
   }
   
   return `${month}${year}${lotCode}`;
@@ -75,29 +79,145 @@ function suggestLotNumber(productShortName, factory, dateStr) {
  * Xử lý dữ liệu từ form, điều phối việc ghi log.
  * @param {object} formObject - Dữ liệu từ form.
  */
-function processTransaction(formObject) {
-  // TODO:
-  // 1. Validate input
-  // 2. Generate SKU
-  // 3. Call db.addTransactionToLog(txObject)
+/**
+ * Xử lý một giao dịch duy nhất, tạo SKU và chuẩn bị dữ liệu để ghi log.
+ * @param {object} formObject - Dữ liệu thô từ form hoặc bảng.
+ * @returns {object} - Kết quả xử lý.
+ */
+function service_processSingleTransaction(formObject) {
+  const categoryData = getCategoryData();
+
+  // --- VALIDATION ---
+  if (!formObject.tenSanPham || !formObject.soLuong) {
+    throw new Error("Thiếu Tên Sản Phẩm hoặc Số Lượng.");
+  }
+  if (formObject.loaiGiaoDich === 'Điều chuyển' && !formObject.khoDi) {
+    throw new Error("Giao dịch 'Điều chuyển' yêu cầu phải có 'Kho Đi'.");
+  }
+  const quantity = parseFloat(formObject.soLuong);
+  if (isNaN(quantity) || quantity <= 0) {
+    throw new Error("Số lượng không hợp lệ. Phải là một số lớn hơn 0.");
+  }
+
+  // --- LOGIC CHÍNH ---
+  const sku = generateSku(formObject, categoryData.productMap);
+  const productionDate = formObject.ngaySanXuat;
+
+  if (formObject.loaiGiaoDich === 'Điều chuyển') {
+    // Tạo 2 giao dịch: 1 xuất, 1 nhập
+    const baseTx = {
+      sku: sku,
+      tenSanPham: formObject.tenSanPham,
+      quyCach: formObject.quyCach,
+      loSanXuat: formObject.loSanXuat,
+      ngaySanXuat: productionDate,
+      tinhTrangChatLuong: formObject.tinhTrangChatLuong,
+      phanXuong: formObject.phanXuong,
+    };
+
+    // 1. Giao dịch xuất từ kho nguồn
+    const exportTx = {
+      ...baseTx,
+      loaiGiaoDich: 'Xuất (Điều chuyển)',
+      soLuong: -quantity, // Số lượng âm
+      kho: formObject.khoDi,
+      ghiChu: `Từ kho ${formObject.khoDi} đến kho ${formObject.kho}. ${formObject.ghiChu || ''}`.trim()
+    };
+    addTransactionToLog(exportTx);
+
+    // 2. Giao dịch nhập vào kho đích
+    const importTx = {
+      ...baseTx,
+      loaiGiaoDich: 'Nhập (Điều chuyển)',
+      soLuong: quantity, // Số lượng dương
+      kho: formObject.kho,
+      ghiChu: `Từ kho ${formObject.khoDi} đến kho ${formObject.kho}. ${formObject.ghiChu || ''}`.trim()
+    };
+    addTransactionToLog(importTx);
+
+  } else {
+    // Xử lý Nhập/Xuất đơn giản
+    const finalQuantity = formObject.loaiGiaoDich === 'Nhập' ? quantity : -quantity;
+    const txObject = {
+      sku: sku,
+      loaiGiaoDich: formObject.loaiGiaoDich,
+      tenSanPham: formObject.tenSanPham,
+      quyCach: formObject.quyCach,
+      loSanXuat: formObject.loSanXuat,
+      ngaySanXuat: productionDate,
+      tinhTrangChatLuong: formObject.tinhTrangChatLuong,
+      soLuong: finalQuantity,
+      phanXuong: formObject.phanXuong,
+      kho: formObject.kho,
+      ghiChu: formObject.ghiChu
+    };
+    addTransactionToLog(txObject);
+  }
   
-  const sku = generateSku(formObject); // We need to move generateSku here
-  const txObject = { ...formObject, sku: sku, ngayGiaoDich: new Date() };
-
-  addTransactionToLog(txObject); // This function is in db.gs
-
-  return { success: true, message: "Giao dịch đã được ghi nhận." };
+  return { success: true, message: "Giao dịch thành công!" };
 }
 
 /**
- * Tạo mã SKU. Hàm này được chuyển từ logic.js cũ.
- * @param {object} txObject - Đối tượng giao dịch.
+ * Tạo mã SKU theo quy tắc mới, sử dụng productMap và xử lý ANFO.
+ * @param {object} txObject - Đối tượng giao dịch từ form.
+ * @param {object} productMap - Map thông tin sản phẩm từ getCategoryData.
  * @returns {string} - Mã SKU.
  */
-function generateSku(txObject) {
-    const productCode = txObject.tenSanPham.split(' ').pop();
-    const date = new Date();
-    const dateString = Utilities.formatDate(date, "GMT", "ddMMyy");
-    const factory = txObject.phanXuong.substring(0, 2).toUpperCase();
-    return `${productCode}-${txObject.quyCach}-${dateString}-${factory}`;
+function generateSku(txObject, productMap) {
+    const productInfo = productMap[txObject.tenSanPham];
+    
+    const factoryMap = {
+      'Px Đông Triều': 'ĐT',
+      'Px Cẩm Phả': 'CP',
+      'Px Quảng Ninh': 'QN'
+    };
+    const factoryCode = factoryMap[txObject.phanXuong] || 'OTHER';
+
+    // **FIX SKU GENERATION**
+    // Ưu tiên lotCode, nếu không có thì dùng shortName làm fallback.
+    let productCode = 'UNKNOWN';
+    if (productInfo) {
+        if (productInfo.lotCode) {
+            productCode = productInfo.lotCode;
+            if (productCode.includes('{PX}')) {
+                productCode = productCode.replace('{PX}', factoryCode);
+            }
+        } else if (productInfo.shortName) {
+            productCode = productInfo.shortName;
+        }
+    }
+
+    const quyCach = txObject.quyCach || 'NA';
+
+    // Định dạng ngày tháng từ object Date hoặc string
+    const date = new Date(txObject.ngaySanXuat);
+    const dateString = Utilities.formatDate(date, "GMT+7", "ddMMyy"); // Dùng GMT+7 cho chắc chắn
+
+    return `${productCode}-${quyCach}-${dateString}-${factoryCode}`;
+}
+
+/**
+ * Lấy 10 giao dịch gần nhất từ log.
+ * @returns {Array<Array<any>>} Mảng 2D chứa dữ liệu giao dịch.
+ */
+function service_getRecentTransactions() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const logSheet = ss.getSheetByName(LOG_SHEET_NAME);
+  if (!logSheet) {
+    return [];
+  }
+
+  const lastRow = logSheet.getLastRow();
+  if (lastRow < 2) {
+    return [];
+  }
+
+  const startRow = Math.max(2, lastRow - 9); // Lấy tối đa 10 hàng, bắt đầu từ hàng 2
+  const numRows = lastRow - startRow + 1;
+  
+  // Chỉ lấy các cột cần thiết cho Trang Chính (11 cột từ B đến L)
+  const range = logSheet.getRange(startRow, 2, numRows, 11); // Từ cột B (INDEX) đến cột L (Ghi Chú)
+  const data = range.getDisplayValues();
+
+  return data.reverse(); // Đảo ngược để giao dịch mới nhất lên đầu
 }

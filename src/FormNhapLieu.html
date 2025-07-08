@@ -53,10 +53,6 @@
         <option>Mẫu lưu</option>
       </select>
     </div>
-    <div class="form-group">
-      <label for="phanXuong">Đơn Vị Sản Xuất</label>
-      <select class="form-control" id="phanXuong"><option value="" disabled selected>Đang tải...</option></select>
-    </div>
     <div class="form-group" id="kho-di-group" style="display: none;">
       <label for="khoDi">Kho Đi (Nguồn)</label>
       <select class="form-control" id="khoDi"><option value="" disabled selected>Đang tải...</option></select>
@@ -70,8 +66,10 @@
       <textarea class="form-control" id="ghiChu" rows="2"></textarea>
     </div>
     
-    <button class="btn btn-primary btn-block" id="submitButton" onclick="submitForm()">Ghi Lại Giao Dịch</button>
-    <button class="btn btn-secondary btn-block mt-2" id="manualSubmitButton" onclick="submitManualEntry()">Nhập Từ Bảng Thủ Công</button>
+    <div class="d-flex justify-content-between">
+      <button class="btn btn-primary" style="width: 48%;" id="submitButton" onclick="submitForm()">Ghi Lại Giao Dịch</button>
+      <button class="btn btn-secondary" style="width: 48%;" id="processTableButton" onclick="processManualTable()">Xử lý Bảng</button>
+    </div>
     <div id="status" class="alert mt-3"></div>
   </div>
 
@@ -198,29 +196,6 @@
       statusDiv.style.display = 'block';
     }
 
-    // Gửi yêu cầu nhập liệu từ bảng thủ công
-    function submitManualEntry() {
-      const manualBtn = document.getElementById('manualSubmitButton');
-      manualBtn.disabled = true;
-      manualBtn.textContent = 'Đang nhập...';
-      showStatus('Đang đọc dữ liệu từ bảng nhập thủ công...', true);
-
-      google.script.run
-        .withSuccessHandler(function(response) {
-          showStatus(response.message, response.success);
-          if(response.success) {
-            resetForm();
-          }
-          manualBtn.disabled = false;
-          manualBtn.textContent = 'Nhập Từ Bảng Thủ Công';
-        })
-        .withFailureHandler(function(err) {
-          showStatus('Lỗi khi nhập thủ công: ' + err.message, false);
-          manualBtn.disabled = false;
-          manualBtn.textContent = 'Nhập Từ Bảng Thủ Công';
-        })
-        .processManualEntry();
-    }
 
     // Xử lý thay đổi giao diện khi chọn loại giao dịch
     function handleTransactionTypeChange() {
@@ -238,16 +213,11 @@
     }
 
     function suggestLoSanXuat() {
-      const tenSanPhamSelect = document.getElementById('tenSanPham');
-      const tenSanPhamText = tenSanPhamSelect.options[tenSanPhamSelect.selectedIndex].text; // Tên viết tắt
-      
-      const phanXuongSelect = document.getElementById('phanXuong');
-      const phanXuongText = phanXuongSelect.value;
-
+      const tenSanPham = document.getElementById('tenSanPham').value;
+      const phanXuong = document.getElementById('phanXuong').value;
       const ngaySanXuat = document.getElementById('ngaySanXuat').value;
 
-      if (tenSanPhamText && tenSanPhamText !== '-- Chọn --' && phanXuongText && ngaySanXuat) {
-        // Vô hiệu hóa input trong khi chờ
+      if (tenSanPham && phanXuong && ngaySanXuat) {
         const loSanXuatInput = document.getElementById('loSanXuat');
         loSanXuatInput.disabled = true;
         loSanXuatInput.value = "Đang tạo gợi ý...";
@@ -261,8 +231,32 @@
             loSanXuatInput.value = "Lỗi tạo gợi ý";
             loSanXuatInput.disabled = false;
           })
-          .suggestLotNumber(tenSanPhamText, phanXuongText, ngaySanXuat);
+          // Gọi hàm với signature mới để xử lý ANFO
+          .suggestLotNumber(tenSanPham, phanXuong, ngaySanXuat);
       }
+    }
+
+    // Hàm gọi xử lý bảng nhập liệu thủ công
+    function processManualTable() {
+      const processBtn = document.getElementById('processTableButton');
+      processBtn.disabled = true;
+      processBtn.textContent = 'Đang xử lý...';
+      showStatus('Bắt đầu xử lý dữ liệu từ bảng nhập thủ công...', true);
+
+      google.script.run
+        .withSuccessHandler(function(response) {
+          // Hàm processManualInputTable đã có alert riêng
+          processBtn.disabled = false;
+          processBtn.textContent = 'Xử lý Bảng Nhập Thủ Công';
+          // Không cần hiển thị thêm status vì đã có alert từ server
+          setTimeout(function() { document.getElementById('status').style.display = 'none'; }, 5000);
+        })
+        .withFailureHandler(function(err) {
+          showStatus('Lỗi xử lý bảng: ' + err.message, false);
+          processBtn.disabled = false;
+          processBtn.textContent = 'Xử lý Bảng Nhập Thủ Công';
+        })
+        .processManualInputTable();
     }
   </script>
 </body>

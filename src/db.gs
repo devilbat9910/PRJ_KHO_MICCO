@@ -6,24 +6,24 @@
  */
 
 /**
- * Ghi một đối tượng giao dịch vào sheet LOG_GIAO_DICH_tbl.
- * @param {object} txObject - Đối tượng chứa thông tin giao dịch.
+ * Ghi một đối tượng giao dịch đã xử lý vào sheet LOG_GIAO_DICH_tbl.
+ * @param {object} txObject - Đối tượng chứa thông tin giao dịch đã được service xử lý.
  */
 function addTransactionToLog(txObject) {
-  // TODO: Implement logic to append a row to the log sheet.
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const logSheet = ss.getSheetByName(LOG_SHEET_NAME);
   
-  // The order of values must match the column order in the sheet.
+  // Thứ tự các giá trị phải khớp với cấu trúc của txObject từ service
+  // và cấu trúc cột trong sheet LOG_GIAO_DICH_tbl.
   logSheet.appendRow([
-    new Date(), // Timestamp
-    txObject.sku,
-    txObject.ngayGiaoDich,
+    new Date(), // Cột A: Timestamp
+    txObject.sku, // Cột B: INDEX (SKU)
+    // Cột C (Ngày Giao Dịch) bị loại bỏ, dữ liệu dịch sang trái
     txObject.loaiGiaoDich,
     txObject.tenSanPham,
     txObject.quyCach,
     txObject.loSanXuat,
-    txObject.ngaySanXuat ? new Date(txObject.ngaySanXuat) : null,
+    txObject.ngaySanXuat, // Đã là đối tượng Date từ service
     txObject.tinhTrangChatLuong,
     txObject.soLuong,
     txObject.phanXuong,
@@ -33,43 +33,52 @@ function addTransactionToLog(txObject) {
 }
 
 /**
- * Lấy dữ liệu danh mục từ sheet 'DANH MUC' theo cấu trúc người dùng chỉ định.
- * @returns {object} - Một đối tượng chứa các mảng dữ liệu cho dropdowns.
+ * Lấy dữ liệu danh mục từ sheet 'DANH MUC' với ánh xạ cột chính xác.
+ * @returns {object} - Một đối tượng chứa các mảng dữ liệu cho dropdowns và xử lý logic.
  */
 function getCategoryData() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  // Sử dụng hằng số CONFIG_SHEET_NAME đã có, trỏ đến 'DANH MUC'
   const sheet = ss.getSheetByName(CONFIG_SHEET_NAME);
   if (!sheet) {
     throw new Error(`Không tìm thấy sheet danh mục: "${CONFIG_SHEET_NAME}"`);
   }
-  
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) {
-    return { products: [], factories: [], warehouses: [] };
+    return { productMap: {}, productDropdown: [], factories: [], warehouses: [] };
   }
 
-  const dataRange = sheet.getRange(`A2:E${lastRow}`); // Read up to column E
-  const data = dataRange.getValues();
+  // Đọc toàn bộ vùng dữ liệu A:E một lần để tối ưu
+  const data = sheet.getRange(`A2:E${lastRow}`).getValues();
 
-  const products = data
-    .map(row => ({
-      fullName: row[0],
-      shortName: row[1],
-      factory: row[2],
-      warehouse: row[3],
-      lotCode: row[4]  // Column E: Mã Lô
-    }))
-    .filter(p => p.fullName);
+  const productMap = {};
+  const factories = new Set();
+  const warehouses = new Set();
 
-  const productDropdown = data.map(p => ({ value: p.fullName, text: p.shortName })).filter(p => p.value && p.text);
-  const factories = [...new Set(data.map(p => p.factory))].filter(String);
-  const warehouses = [...new Set(data.map(p => p.warehouse))].filter(String);
+  // Lặp qua từng hàng để xử lý dữ liệu với đúng chỉ mục cột
+  data.forEach(row => {
+    const fullName = row[0]; // Cột A: Tên Sản Phẩm
+    const factory = row[2];  // Cột C: Phân xưởng
+    const warehouse = row[3]; // Cột D: Kho
+
+    if (fullName) {
+      productMap[fullName] = {
+        shortName: row[1], // Cột B
+        lotCode: row[4]    // Cột E
+      };
+    }
+    if (factory) factories.add(factory);
+    if (warehouse) warehouses.add(warehouse);
+  });
+
+  const productDropdown = Object.keys(productMap).map(fullName => ({
+    value: fullName,
+    text: `${productMap[fullName].shortName} (${fullName})`
+  }));
 
   return {
-    allData: products, // Pass all data to service layer
-    productDropdown,
-    factories,
-    warehouses
+    productMap: productMap,
+    productDropdown: productDropdown,
+    factories: [...factories],
+    warehouses: [...warehouses]
   };
 }

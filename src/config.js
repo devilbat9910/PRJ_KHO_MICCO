@@ -12,9 +12,11 @@ const SNAPSHOT_SHEET_PREFIX = 'Snapshot_';
 const REPORT_SHEET_NAME = 'BaoCaoTonKho';
 const MAIN_SHEET_NAME = 'Trang Chính';
 const VIEW_INVENTORY_SHEET_NAME = 'vw_tonkho'; // Tên sheet View
-const MAIN_SHEET_INV_DISPLAY_COL_START = 10;
-// CONSTANTS for the new DB layer
 const LOG_SHEET_NAME = 'LOG_GIAO_DICH_tbl';
+
+// --- Tọa độ bảng trên Trang Chính ---
+const RECENT_TRANSACTIONS_RANGE = 'A3:K14'; // Header ở dòng 3, 11 dòng data (4-14)
+const MANUAL_INPUT_RANGE = 'A19:K30';      // Header ở dòng 19, 11 dòng data (20-30)
 
 // Thêm hoặc bớt các kho bạn muốn theo dõi tại đây.
 const MONITORED_WAREHOUSES = ['Kho ĐT3', 'Kho ĐT4', 'Kho ĐT5', 'Kho ĐT6', 'Kho ĐT7', 'Kho ĐT8', 'Kho ĐT9'];
@@ -26,7 +28,7 @@ function onOpen() {
   const ui = SpreadsheetApp.getUi();
   const menu = ui.createMenu('📦 Quản Lý Kho');
   
-  menu.addItem('Mở Form Nhập/Xuất Kho', 'showSidebar');
+  menu.addItem('Bảng điều khiển', 'showSidebar');
   menu.addSeparator();
   
   const reportMenu = ui.createMenu('📊 Báo Cáo & Chốt Sổ');
@@ -59,7 +61,8 @@ function setupInitialStructure() {
   const ui = SpreadsheetApp.getUi();
 
   // 1. Thiết lập sheet LOG_GIAO_DICH_tbl
-  const logHeaders = ['Timestamp', 'INDEX (SKU)', 'Ngày Giao Dịch', 'Loại Giao Dịch', 'Tên Sản Phẩm', 'Quy Cách', 'Lô Sản Xuất', 'Ngày Sản Xuất', 'Tình Trạng Chất Lượng', 'Số Lượng', 'Đơn Vị Sản Xuất', 'Kho', 'Ghi Chú'];
+  // Cột 'Ngày Giao Dịch' đã được loại bỏ để khớp với hàm addTransactionToLog trong db.gs
+  const logHeaders = ['Timestamp', 'INDEX (SKU)', 'Loại Giao Dịch', 'Tên Sản Phẩm', 'Quy Cách', 'Lô Sản Xuất', 'Ngày Sản Xuất', 'Tình Trạng Chất Lượng', 'Số Lượng', 'Đơn Vị Sản Xuất', 'Kho', 'Ghi Chú'];
   const logSheet = ss.getSheetByName(LOG_SHEET_NAME) || ss.insertSheet(LOG_SHEET_NAME);
   if (logSheet.getLastRow() === 0) {
     logSheet.getRange(1, 1, 1, logHeaders.length).setValues([logHeaders]).setFontWeight('bold');
@@ -69,7 +72,8 @@ function setupInitialStructure() {
   // 2. Thiết lập sheet View vw_tonkho
   const viewSheet = ss.getSheetByName(VIEW_INVENTORY_SHEET_NAME) || ss.insertSheet(VIEW_INVENTORY_SHEET_NAME);
   viewSheet.clear(); // Luôn xóa để đảm bảo công thức là mới nhất
-  const queryFormula = `=QUERY(${LOG_SHEET_NAME}!A:M, "SELECT E, F, G, H, I, L, SUM(J) WHERE E IS NOT NULL GROUP BY E, F, G, H, I, L LABEL SUM(J) 'Số Lượng Tồn'")`;
+  // Công thức đã được cập nhật để phản ánh cấu trúc cột mới (12 cột)
+  const queryFormula = `=QUERY(${LOG_SHEET_NAME}!A:L, "SELECT D, E, F, G, H, K, SUM(I) WHERE D IS NOT NULL GROUP BY D, E, F, G, H, K LABEL SUM(I) 'Số Lượng Tồn'")`;
   viewSheet.getRange('A1').setFormula(queryFormula);
   
   // 3. Xóa sheet TỒN KHO HIỆN TẠI cũ (nếu có)
@@ -115,9 +119,9 @@ function updateDashboardFromTemplate() {
   
   // Ghi đè tiêu đề cho bảng nhập thủ công để đảm bảo tính nhất quán
   const manualEntryHeaders = [
-    'Ngày Giao Dịch', 'Loại Giao Dịch', 'Tên Sản Phẩm', 'Quy Cách', 'Lô Sản Xuất', 'Số Lượng', 'Tình Trạng Chất Lượng', 'Đơn Vị Sản Xuất', 'Kho', 'Ghi Chú'
+    ['INDEX (SKU)', 'Loại Giao Dịch', 'Tên Sản Phẩm', 'Quy Cách', 'Lô Sản Xuất', 'Ngày Sản Xuất', 'Tình Trạng Chất Lượng', 'Số Lượng', 'Đơn Vị Sản Xuất', 'Kho', 'Ghi Chú']
   ];
-  mainSheet.getRange('A18:J18').setValues([manualEntryHeaders]).setFontWeight('bold').setBackground('#f3f3f3');
+  mainSheet.getRange('A19:K19').setValues(manualEntryHeaders).setFontWeight('bold').setBackground('#f3f3f3');
 
   ss.setActiveSheet(mainSheet);
   SpreadsheetApp.getUi().alert('Đã cập nhật thành công Trang Chính từ template!');
