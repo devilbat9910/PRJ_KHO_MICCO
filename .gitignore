@@ -1,0 +1,13 @@
+# Mac-specific files
+.DS_Store
+
+# Data files and sensitive info
+*.csv
+*.json
+
+# Node modules
+node_modules/
+
+# Ignores clasp pull files
+# *.js
+# *.html
