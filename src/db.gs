@@ -45,47 +45,32 @@ function getCategoryData() {
   }
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) {
-    return { productMap: {}, productDropdown: [], factories: [], warehouses: [], productAliasMap: {}, factoryAliasMap: {}, warehouseAliasMap: {} };
+    return { productMap: {}, productDropdown: [], warehouses: [] };
   }
 
-  const data = sheet.getRange(`A2:E${lastRow}`).getValues();
+  // Đọc đến cột F để lấy tất cả dữ liệu cần thiết
+  const data = sheet.getRange(`A2:F${lastRow}`).getValues();
 
   const productMap = {};
-  const productAliasMap = {}; // Map từ Mã Lô (cột E) -> Tên đầy đủ (cột A)
-  const factories = new Set();
   const warehouses = new Set();
 
   data.forEach(row => {
-    const fullName = row[0];
-    const shortName = row[1];
-    const factory = row[2];
-    const warehouse = row[3];
-    const lotCode = row[4];
+    const fullName = row[0]; // Tên đầy đủ
+    const shortName = row[1]; // Tên viết tắt
+    const quyCach = row[2]; // Quy cách
+    const factory = row[3]; // Đơn vị sản xuất
+    const warehouse = row[4]; // Kho
+    const lotCode = row[5]; // Mã lô (nếu có)
 
     if (fullName) {
-      productMap[fullName] = { shortName: shortName, lotCode: lotCode };
-      if (lotCode) {
-        productAliasMap[lotCode.toUpperCase()] = fullName; // Key viết hoa để tìm kiếm không phân biệt
-      }
-      if (shortName) {
-         productAliasMap[shortName.toUpperCase()] = fullName; // Thêm cả tên viết tắt vào map
-      }
+      productMap[fullName] = {
+        shortName: shortName,
+        quyCach: quyCach,
+        factory: factory,
+        lotCode: lotCode
+      };
     }
-    if (factory) factories.add(factory);
     if (warehouse) warehouses.add(warehouse);
-  });
-
-  // Tạo Alias Map cho Phân xưởng và Kho
-  const factoryAliasMap = {};
-  [...factories].forEach(f => {
-    const match = f.match(/\(([^)]+)\)/); // Lấy text trong dấu ngoặc đơn, ví dụ "Px Đông Triều (ĐT)" -> "ĐT"
-    if (match) factoryAliasMap[match[1].toUpperCase()] = f;
-  });
-
-  const warehouseAliasMap = {};
-  [...warehouses].forEach(w => {
-    const alias = w.replace('Kho ', '').toUpperCase(); // "Kho ĐT3" -> "ĐT3"
-    warehouseAliasMap[alias] = w;
   });
 
   const productDropdown = Object.keys(productMap).map(fullName => ({
@@ -96,10 +81,36 @@ function getCategoryData() {
   return {
     productMap,
     productDropdown,
-    factories: [...factories],
-    warehouses: [...warehouses],
-    productAliasMap,
-    factoryAliasMap,
-    warehouseAliasMap
+    warehouses: [...warehouses]
   };
+}
+
+/**
+ * Lấy danh sách tên các kho từ cột 'Kho' trong sheet 'DANH MUC'.
+ * @returns {string[]} - Một mảng chứa tên của tất cả các kho.
+ */
+function getWarehouseNames() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(CONFIG_SHEET_NAME);
+  if (!sheet) {
+    Logger.log(`Không tìm thấy sheet danh mục: "${CONFIG_SHEET_NAME}"`);
+    return [];
+  }
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) {
+    return [];
+  }
+
+  // Đọc dữ liệu từ cột D (cột thứ 4)
+  const warehouseData = sheet.getRange(2, 4, lastRow - 1, 1).getValues();
+  
+  // Lọc bỏ các giá trị rỗng và trùng lặp
+  const warehouses = new Set();
+  warehouseData.forEach(row => {
+    if (row[0]) {
+      warehouses.add(row[0].toString().trim());
+    }
+  });
+
+  return [...warehouses];
 }

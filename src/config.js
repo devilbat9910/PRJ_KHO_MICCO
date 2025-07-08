@@ -50,39 +50,56 @@ function onOpen() {
 }
 
 /**
- * Hàm thiết lập cấu trúc ban đầu cho các sheet.
- */
-/**
- * Hàm thiết lập cấu trúc cần thiết cho hệ thống.
- * Sheet 'DANH MUC' sẽ do người dùng quản lý thủ công.
+ * Hàm thiết lập cấu trúc cần thiết cho hệ thống theo mô hình "Ma trận Tồn kho".
+ * Sheet 'DANH MUC' và 'LOG_GIAO_DICH_tbl' được giữ lại, các sheet tồn kho cũ bị xóa.
+ * Tạo ra sheet 'TON_KHO_tonghop' với cấu trúc cột động.
  */
 function setupInitialStructure() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const ui = SpreadsheetApp.getUi();
 
-  // 1. Thiết lập sheet LOG_GIAO_DICH_tbl
-  // Cột 'Ngày Giao Dịch' đã được loại bỏ để khớp với hàm addTransactionToLog trong db.gs
-  const logHeaders = ['Timestamp', 'INDEX (SKU)', 'Loại Giao Dịch', 'Tên Sản Phẩm', 'Quy Cách', 'Lô Sản Xuất', 'Ngày Sản Xuất', 'Tình Trạng Chất Lượng', 'Số Lượng', 'Đơn Vị Sản Xuất', 'Kho', 'Ghi Chú'];
-  const logSheet = ss.getSheetByName(LOG_SHEET_NAME) || ss.insertSheet(LOG_SHEET_NAME);
-  if (logSheet.getLastRow() === 0) {
-    logSheet.getRange(1, 1, 1, logHeaders.length).setValues([logHeaders]).setFontWeight('bold');
-    logSheet.setFrozenRows(1);
-  }
-
-  // 2. Thiết lập sheet View vw_tonkho
-  const viewSheet = ss.getSheetByName(VIEW_INVENTORY_SHEET_NAME) || ss.insertSheet(VIEW_INVENTORY_SHEET_NAME);
-  viewSheet.clear(); // Luôn xóa để đảm bảo công thức là mới nhất
-  // Công thức đã được cập nhật để phản ánh cấu trúc cột mới (12 cột)
-  const queryFormula = `=QUERY(${LOG_SHEET_NAME}!A:L, "SELECT D, E, F, G, H, K, SUM(I) WHERE D IS NOT NULL GROUP BY D, E, F, G, H, K LABEL SUM(I) 'Số Lượng Tồn'")`;
-  viewSheet.getRange('A1').setFormula(queryFormula);
+  // 1. Định nghĩa cấu trúc cho sheet Tồn Kho Tổng Hợp
+  const MASTER_INVENTORY_SHEET = 'TON_KHO_tonghop';
   
-  // 3. Xóa sheet TỒN KHO HIỆN TẠI cũ (nếu có)
-  const oldInventorySheet = ss.getSheetByName(INVENTORY_SHEET_NAME);
-  if (oldInventorySheet) {
-    ss.deleteSheet(oldInventorySheet);
+  // Các cột định danh cố định
+  const identifierHeaders = [
+    'INDEX (SKU)', 'Tên Viết Tắt', 'Quy Cách', 'Đơn Vị Sản Xuất',
+    'Lô Sản Xuất', 'Ngày Sản Xuất', 'Tình Trạng Chất Lượng', 'Ngày Thử Nổ'
+  ];
+
+  // Lấy danh sách các cột kho động từ sheet DANH MUC
+  const warehouseHeaders = getWarehouseNames();
+  if (warehouseHeaders.length === 0) {
+    ui.alert('Lỗi: Không tìm thấy tên kho nào trong cột D của sheet "DANH MUC". Vui lòng kiểm tra lại.');
+    return;
   }
 
-  ui.alert('Thiết lập cấu trúc các sheet hệ thống thành công!');
+  // Kết hợp hai danh sách để tạo tiêu đề hoàn chỉnh
+  const fullHeaders = [identifierHeaders.concat(warehouseHeaders)];
+
+  // 2. Tạo hoặc làm mới sheet Tồn Kho Tổng Hợp
+  let inventorySheet = ss.getSheetByName(MASTER_INVENTORY_SHEET);
+  if (inventorySheet) {
+    inventorySheet.clear(); // Xóa dữ liệu cũ nếu sheet đã tồn tại
+  } else {
+    inventorySheet = ss.insertSheet(MASTER_INVENTORY_SHEET);
+  }
+  
+  inventorySheet.getRange(1, 1, 1, fullHeaders[0].length)
+    .setValues(fullHeaders)
+    .setFontWeight('bold')
+    .setBackground('#f3f3f3');
+  inventorySheet.setFrozenColumns(identifierHeaders.length); // Cố định các cột định danh
+  inventorySheet.setFrozenRows(1);
+
+  // 3. Xóa các sheet tồn kho cũ không còn sử dụng
+  const oldViewSheet = ss.getSheetByName(VIEW_INVENTORY_SHEET_NAME);
+  if (oldViewSheet) ss.deleteSheet(oldViewSheet);
+
+  const oldInventorySheet = ss.getSheetByName(INVENTORY_SHEET_NAME);
+  if (oldInventorySheet) ss.deleteSheet(oldInventorySheet);
+
+  ui.alert(`Thiết lập thành công! Sheet "${MASTER_INVENTORY_SHEET}" đã được tạo/cập nhật với ${warehouseHeaders.length} kho.`);
 }
 
 /**

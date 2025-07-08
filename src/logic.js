@@ -119,49 +119,41 @@ function processManualInputTable() {
   const dataRegion = inputTableRange.offset(1, 0, inputTableRange.getNumRows() - 1);
   const inputData = dataRegion.getValues();
   
-  const categoryData = getCategoryData(); // Lấy "bộ não" diễn giải
   let processedCount = 0;
   const rowsToClear = [];
 
   inputData.forEach((row, index) => {
-    if (!row[2] && !row[7]) { // Bỏ qua nếu Tên SP và Số lượng trống
+    // Bỏ qua hàng trống
+    if (row.every(cell => cell === '')) {
       return;
     }
 
-    // --- Diễn giải thông minh ---
-    const tenSanPhamInput = row[2] ? String(row[2]).toUpperCase() : '';
-    const phanXuongInput = row[8] ? String(row[8]).toUpperCase() : '';
-    const khoInput = row[9] ? String(row[9]).toUpperCase() : '';
-
-    const tenSanPham = categoryData.productAliasMap[tenSanPhamInput] || row[2];
-    const phanXuong = categoryData.factoryAliasMap[phanXuongInput] || row[8];
-    const kho = categoryData.warehouseAliasMap[khoInput] || row[9];
-    
+    // Ánh xạ trực tiếp từ cột sang đối tượng, không cần diễn giải thông minh
     const transactionObject = {
+      // Cột A trong sheet là INDEX (SKU), bỏ qua khi đọc
       loaiGiaoDich: row[1],
-      tenSanPham: tenSanPham,
-      quyCach: row[3],
+      tenSanPham: row[2],
+      quyCach: row[3], // Sẽ được ghi đè bởi thông tin từ DANH MUC trong service layer
       loSanXuat: row[4],
       ngaySanXuat: row[5],
       tinhTrangChatLuong: row[6],
       soLuong: row[7],
-      phanXuong: phanXuong,
-      kho: kho,
+      phanXuong: row[8], // Sẽ được ghi đè bởi thông tin từ DANH MUC
+      kho: row[9],
       ghiChu: row[10]
     };
 
     try {
-      // Thêm validation cơ bản
-      if (!transactionObject.tenSanPham || !transactionObject.soLuong || !transactionObject.ngaySanXuat || !transactionObject.phanXuong || !transactionObject.kho) {
-        throw new Error("Thiếu các trường thông tin bắt buộc (Sản phẩm, Số lượng, Ngày SX, Phân xưởng, Kho).");
+      // Validation cơ bản ở tầng này
+      if (!transactionObject.tenSanPham || !transactionObject.soLuong || !transactionObject.ngaySanXuat || !transactionObject.kho) {
+        throw new Error("Thiếu các trường bắt buộc: Tên Sản Phẩm, Số Lượng, Ngày Sản Xuất, Kho.");
       }
       
       service_processSingleTransaction(transactionObject);
       processedCount++;
+      
       // Đánh dấu hàng để xóa sau khi xử lý thành công
-      const relativeRow = index + 1; // Vị trí tương đối trong vùng dữ liệu
-      const cellToClear = dataRegion.getCell(relativeRow, 1);
-      cellToClear.setValue('✔ Đã xử lý'); // Đánh dấu trực quan
+      const relativeRow = index + 1;
       rowsToClear.push(relativeRow);
 
     } catch (e) {
@@ -170,14 +162,14 @@ function processManualInputTable() {
     }
   });
 
-  // Xóa các hàng đã xử lý thành công (cách tiếp cận an toàn hơn)
+  // Xóa các hàng đã xử lý thành công
   if (processedCount > 0) {
-     ui.alert(`Hoàn tất xử lý. ${processedCount} giao dịch đã được ghi nhận. Các hàng đã xử lý sẽ được xóa.`);
      // Xóa các hàng từ dưới lên để tránh thay đổi chỉ số
      rowsToClear.reverse().forEach(relativeRowIndex => {
         const absoluteRowIndex = inputTableRange.getRow() + relativeRowIndex;
         mainSheet.deleteRow(absoluteRowIndex);
      });
+     ui.alert(`Hoàn tất xử lý. ${processedCount} giao dịch đã được ghi nhận và xóa khỏi bảng nhập liệu.`);
   } else {
      ui.alert("Không có giao dịch nào được xử lý. Vui lòng kiểm tra lại dữ liệu và các ghi chú lỗi (nếu có).");
   }

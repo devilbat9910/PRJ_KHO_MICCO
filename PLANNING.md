@@ -13,7 +13,7 @@ The system is built using a 3-layer architecture within the Google Apps Script e
 *   **Google Sheets:** Acts as the database and primary user interface.
     *   `DANH MUC`: User-managed sheet for all dropdowns and business rules.
     *   `LOG_GIAO_DICH_tbl`: Immutable raw data log for all transactions.
-    *   `vw_tonkho`: A read-only "View" sheet that uses a `QUERY` formula to aggregate inventory from the log.
+    *   `TON_KHO_tonghop`: A "Matrix Inventory" sheet that acts as the central database for inventory levels. Each row represents a unique product batch (SKU), and each column represents a physical warehouse, creating a powerful matrix for querying and reporting. This sheet is managed entirely by the script.
     *   `Trang Chính`: The main dashboard for user interaction.
 *   **Google Apps Script:** The runtime environment for all backend code.
 *   **HTML Service:** Used to create the sidebar user interface (`FormNhapLieu.html`).
