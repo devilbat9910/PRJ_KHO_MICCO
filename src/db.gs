@@ -36,34 +36,36 @@ function addTransactionToLog(txObject) {
 }
 
 /**
- * Lấy dữ liệu danh mục từ sheet DANH_MUC_tbl.
+ * Lấy dữ liệu danh mục từ sheet 'DANH MUC' theo cấu trúc người dùng chỉ định.
  * @returns {object} - Một đối tượng chứa các mảng dữ liệu cho dropdowns.
  */
 function getCategoryData() {
-  // TODO: Implement logic to read from the category sheet.
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const categorySheet = ss.getSheetByName(CATEGORY_SHEET_NAME);
-  if (!categorySheet) {
-    throw new Error(`Không tìm thấy sheet danh mục: ${CATEGORY_SHEET_NAME}`);
+  // Sử dụng hằng số CONFIG_SHEET_NAME đã có, trỏ đến 'DANH MUC'
+  const sheet = ss.getSheetByName(CONFIG_SHEET_NAME);
+  if (!sheet) {
+    throw new Error(`Không tìm thấy sheet danh mục: "${CONFIG_SHEET_NAME}"`);
   }
   
-  const lastRow = categorySheet.getLastRow();
+  const lastRow = sheet.getLastRow();
   if (lastRow < 2) {
     return { products: [], factories: [], warehouses: [] };
   }
 
-  const data = categorySheet.getRange(2, 1, lastRow - 1, 6).getValues();
-  
-  const products = data.map(row => ({
-    value: row[2], // PRODUCT_FULL_NAME
-    text: row[3]   // PRODUCT_SHORT_NAME
-  }));
+  const dataRange = sheet.getRange(`A2:D${lastRow}`);
+  const data = dataRange.getValues();
 
-  // For now, let's assume factories and warehouses are still in the old config sheet
-  // This will be refactored later.
-  const configSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DANH MUC');
-  const factories = configSheet.getRange('C2:C' + configSheet.getLastRow()).getValues().flat().filter(String);
-  const warehouses = configSheet.getRange('D2:D' + configSheet.getLastRow()).getValues().flat().filter(String);
+  const products = data
+    .map(row => ({ value: row[0], text: row[1] })) // Cột A: Tên đầy đủ, Cột B: Tên viết tắt
+    .filter(p => p.value && p.text);
+
+  const factories = data
+    .map(row => row[2]) // Cột C: Phân xưởng
+    .filter((value, index, self) => self.indexOf(value) === index && value); // Lọc duy nhất và loại bỏ rỗng
+
+  const warehouses = data
+    .map(row => row[3]) // Cột D: Kho
+    .filter((value, index, self) => self.indexOf(value) === index && value); // Lọc duy nhất và loại bỏ rỗng
 
   return { products, factories, warehouses };
 }

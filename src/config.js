@@ -13,6 +13,8 @@ const REPORT_SHEET_NAME = 'BaoCaoTonKho';
 const MAIN_SHEET_NAME = 'Trang Chính';
 const VIEW_INVENTORY_SHEET_NAME = 'vw_tonkho'; // Tên sheet View
 const MAIN_SHEET_INV_DISPLAY_COL_START = 10;
+// CONSTANTS for the new DB layer
+const LOG_SHEET_NAME = 'LOG_GIAO_DICH_tbl';
 
 // Thêm hoặc bớt các kho bạn muốn theo dõi tại đây.
 const MONITORED_WAREHOUSES = ['Kho ĐT3', 'Kho ĐT4', 'Kho ĐT5', 'Kho ĐT6', 'Kho ĐT7', 'Kho ĐT8', 'Kho ĐT9'];
@@ -38,7 +40,8 @@ function onOpen() {
   helpMenu.addItem('Tạo/Mở Tài liệu Dự án', 'createOrOpenDocumentation');
   helpMenu.addItem('Tạo Sheet Template cho Trang Chính', 'createDashboardTemplateSheet');
   helpMenu.addItem('Cập nhật Trang Chính từ Template', 'updateDashboardFromTemplate');
-  helpMenu.addItem('Thiết lập ban đầu (Chạy 1 lần)', 'setupInitialStructure');
+  helpMenu.addSeparator();
+  helpMenu.addItem('Thiết lập cấu trúc (Chạy 1 lần)', 'setupInitialStructure');
   menu.addSubMenu(helpMenu);
 
   menu.addToUi();
@@ -48,52 +51,34 @@ function onOpen() {
  * Hàm thiết lập cấu trúc ban đầu cho các sheet.
  */
 /**
- * Hàm thiết lập cấu trúc ban đầu cho các sheet theo kiến trúc AllInSheets.
+ * Hàm thiết lập cấu trúc cần thiết cho hệ thống.
+ * Sheet 'DANH MUC' sẽ do người dùng quản lý thủ công.
  */
 function setupInitialStructure() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const ui = SpreadsheetApp.getUi();
 
-  // 1. Thiết lập sheet DANH_MUC_tbl
-  const categoryHeaders = ['PRODUCT_ID', 'PRODUCT_GROUP', 'PRODUCT_FULL_NAME', 'PRODUCT_SHORT_NAME', 'BASE_CODE', 'SPECIFICATION'];
-  const categorySheet = ss.getSheetByName('DANH_MUC_tbl') || ss.insertSheet('DANH_MUC_tbl');
-  categorySheet.clear();
-  categorySheet.getRange(1, 1, 1, categoryHeaders.length).setValues([categoryHeaders]).setFontWeight('bold');
-  categorySheet.setFrozenRows(1);
-
-  // 2. Thiết lập sheet LOG_GIAO_DICH_tbl
+  // 1. Thiết lập sheet LOG_GIAO_DICH_tbl
   const logHeaders = ['Timestamp', 'INDEX (SKU)', 'Ngày Giao Dịch', 'Loại Giao Dịch', 'Tên Sản Phẩm', 'Quy Cách', 'Lô Sản Xuất', 'Ngày Sản Xuất', 'Tình Trạng Chất Lượng', 'Số Lượng', 'Đơn Vị Sản Xuất', 'Kho', 'Ghi Chú'];
-  const logSheet = ss.getSheetByName('LOG_GIAO_DICH_tbl') || ss.insertSheet('LOG_GIAO_DICH_tbl');
-  logSheet.clear();
-  logSheet.getRange(1, 1, 1, logHeaders.length).setValues([logHeaders]).setFontWeight('bold');
-  logSheet.setFrozenRows(1);
+  const logSheet = ss.getSheetByName(LOG_SHEET_NAME) || ss.insertSheet(LOG_SHEET_NAME);
+  if (logSheet.getLastRow() === 0) {
+    logSheet.getRange(1, 1, 1, logHeaders.length).setValues([logHeaders]).setFontWeight('bold');
+    logSheet.setFrozenRows(1);
+  }
 
+  // 2. Thiết lập sheet View vw_tonkho
+  const viewSheet = ss.getSheetByName(VIEW_INVENTORY_SHEET_NAME) || ss.insertSheet(VIEW_INVENTORY_SHEET_NAME);
+  viewSheet.clear(); // Luôn xóa để đảm bảo công thức là mới nhất
+  const queryFormula = `=QUERY(${LOG_SHEET_NAME}!A:M, "SELECT E, F, G, H, I, L, SUM(J) WHERE E IS NOT NULL GROUP BY E, F, G, H, I, L LABEL SUM(J) 'Số Lượng Tồn'")`;
+  viewSheet.getRange('A1').setFormula(queryFormula);
+  
   // 3. Xóa sheet TỒN KHO HIỆN TẠI cũ (nếu có)
   const oldInventorySheet = ss.getSheetByName(INVENTORY_SHEET_NAME);
   if (oldInventorySheet) {
     ss.deleteSheet(oldInventorySheet);
   }
 
-  // 4. Thiết lập sheet View vw_tonkho
-  const viewSheet = ss.getSheetByName(VIEW_INVENTORY_SHEET_NAME) || ss.insertSheet(VIEW_INVENTORY_SHEET_NAME);
-  viewSheet.clear();
-  const queryFormula = `=QUERY(LOG_GIAO_DICH_tbl!A:M, "SELECT E, F, G, H, I, L, SUM(J) WHERE E IS NOT NULL GROUP BY E, F, G, H, I, L LABEL SUM(J) 'Số Lượng Tồn'")`;
-  viewSheet.getRange('A1').setFormula(queryFormula);
-  
-  // 5. Thiết lập sheet BÁO CÁO (giữ nguyên)
-  const reportSheet = ss.getSheetByName(REPORT_SHEET_NAME) || ss.insertSheet(REPORT_SHEET_NAME);
-  if (reportSheet.getLastRow() === 0) {
-    reportSheet.getRange('A1:G1').setValues([
-      ['STT', 'Tên vật tư hàng hóa', 'Loại Sản Phẩm', 'Tồn đầu kỳ', 'Nhập trong kỳ', 'Xuất trong kỳ', 'Tồn cuối kỳ']
-    ]).setFontWeight('bold');
-  }
-
-  // 6. Thiết lập sheet TRANG CHÍNH (giữ nguyên)
-  if (!ss.getSheetByName(MAIN_SHEET_NAME)) {
-      updateDashboardFromTemplate();
-  }
-
-  ui.alert('Thiết lập cấu trúc theo mô hình AllInSheets thành công!');
+  ui.alert('Thiết lập cấu trúc các sheet hệ thống thành công!');
 }
 
 /**
