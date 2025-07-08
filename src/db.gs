@@ -5,9 +5,6 @@
  * Không chứa logic nghiệp vụ hoặc logic giao diện.
  */
 
-const LOG_SHEET_NAME = 'LOG_GIAO_DICH_tbl';
-const CATEGORY_SHEET_NAME = 'DANH_MUC_tbl';
-
 /**
  * Ghi một đối tượng giao dịch vào sheet LOG_GIAO_DICH_tbl.
  * @param {object} txObject - Đối tượng chứa thông tin giao dịch.
