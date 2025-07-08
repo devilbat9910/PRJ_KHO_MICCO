@@ -1,22 +1,30 @@
-# QUY TẮC VÀ CHECKLIST CHO PHIÊN LÀM VIỆC MỚI
+# QUY TẮC VÀ CHECKLIST LÀM VIỆC
 
-## QUY TẮC BẮT BUỘC
+---
 
-1.  **Đọc và Hiểu:** Luôn bắt đầu bằng việc đọc lại tệp này và các tệp `README.md`, `WORKFLOW.md` để nắm rõ bối cảnh và quy trình làm việc.
-2.  **Một việc tại một thời điểm:** Tập trung giải quyết một yêu cầu hoặc một vấn đề tại một thời điểm để đảm bảo chất lượng và tránh sai sót.
-3.  **Kiểm tra trước khi Push:** Luôn kiểm tra lại các thay đổi và đảm bảo mã nguồn hoạt động ổn định trước khi lưu trữ lên Git.
-4.  **Giao tiếp rõ ràng:** Mọi thay đổi lớn hoặc các vấn đề phát sinh cần được thông báo và xác nhận rõ ràng.
+## CHECKLIST KHI BẮT ĐẦU PHIÊN MỚI (LIST NEW)
 
-## CHECKLIST KHI BẮT ĐẦU PHIÊN MỚI
+*Mục tiêu: Nắm rõ bối cảnh, các vấn đề tồn đọng và xác định kế hoạch hành động.*
 
-- [ ] **Rà soát yêu cầu:** Đọc kỹ yêu cầu mới và các phản hồi từ phiên làm việc trước.
-- [ ] **Xác định phạm vi:** Liệt kê các tệp sẽ bị ảnh hưởng bởi thay đổi.
-- [ ] **Lập kế hoạch:** Vạch ra các bước thực hiện rõ ràng.
-- [ ] **Thông báo kế hoạch:** Trình bày kế hoạch cho người dùng trước khi bắt đầu code.
+- [ ] **Đọc tài liệu:** Đọc lại `PLANNING.md`, `WORKFLOW.md` và tệp này.
+- [ ] **Rà soát phiên trước:** Đọc lại `LIST END` của phiên làm việc cuối cùng để hiểu các thay đổi đã thực hiện.
+- [ ] **Kiểm tra yêu cầu mới:** Phân tích các yêu cầu, phản hồi mới và các vấn đề đang tồn tại.
+- [ ] **Xác định trạng thái dự án:** Đang ở giai đoạn nào? Có vướng mắc gì không?
+- [ ] **Lập kế hoạch & Thông báo:** Vạch ra các bước thực hiện cho phiên hiện tại và thông báo cho người dùng.
 
-## CHECKLIST KHI KẾT THÚC PHIÊN
+---
 
-- [ ] **Hoàn thành yêu cầu:** Đảm bảo tất cả các yêu cầu đã được giải quyết.
-- [ ] **Kiểm tra lại toàn bộ:** Rà soát lại các thay đổi để đảm bảo không có lỗi phát sinh.
-- [ ] **Tổng kết công việc:** Tóm tắt các công việc đã hoàn thành.
-- [ ] **Lưu trữ (Git Push):** Thực hiện `git add .`, `git commit -m "Mô tả thay đổi"`, và `git push` để lưu trữ phiên làm việc.
+## CHECKLIST KHI KẾT THÚC PHIÊN (LIST END)
+
+*Mục tiêu: Đảm bảo mọi công việc đã hoàn thành, được ghi nhận và lưu trữ an toàn.*
+
+- [ ] **Tổng kết công việc (Commit Message):** Liệt kê ngắn gọn nhưng đầy đủ các thay đổi đã thực hiện trong phiên. Đây sẽ là thông tin để phiên làm việc mới đọc và hiểu.
+    - *Ví dụ: "feat: Implement intelligent data processing. Added alias mapping, data standardization, and stricter validation."*
+- [ ] **Kiểm tra lại toàn bộ:** Đảm bảo mã nguồn hoạt động ổn định và đáp ứng đúng yêu cầu.
+- [ ] **Triển khai lên Google Apps Script:**
+    - `clasp push -f`
+- [ ] **Lưu trữ lên GitHub:**
+    - `git add .`
+    - `git commit -m "Nội dung đã tổng kết ở trên"`
+    - `git push`
+- [ ] **Hoàn tất:** Thông báo kết thúc phiên làm việc.
