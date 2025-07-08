@@ -119,27 +119,35 @@ function processManualInputTable() {
   const dataRegion = inputTableRange.offset(1, 0, inputTableRange.getNumRows() - 1);
   const inputData = dataRegion.getValues();
   
+  const categoryData = getCategoryData(); // Lấy "bộ não" diễn giải
   let processedCount = 0;
   const rowsToClear = [];
 
   inputData.forEach((row, index) => {
-    // Bỏ qua nếu hàng trống (chỉ kiểm tra các cột quan trọng)
-    if (!row[2] && !row[6]) { // Tên SP và Số lượng
+    if (!row[2] && !row[7]) { // Bỏ qua nếu Tên SP và Số lượng trống
       return;
     }
 
-    // Ánh xạ cột chính xác theo header mới (bỏ qua cột A: INDEX)
+    // --- Diễn giải thông minh ---
+    const tenSanPhamInput = row[2] ? String(row[2]).toUpperCase() : '';
+    const phanXuongInput = row[8] ? String(row[8]).toUpperCase() : '';
+    const khoInput = row[9] ? String(row[9]).toUpperCase() : '';
+
+    const tenSanPham = categoryData.productAliasMap[tenSanPhamInput] || row[2];
+    const phanXuong = categoryData.factoryAliasMap[phanXuongInput] || row[8];
+    const kho = categoryData.warehouseAliasMap[khoInput] || row[9];
+    
     const transactionObject = {
-      loaiGiaoDich: row[1],       // Cột B
-      tenSanPham: row[2],         // Cột C
-      quyCach: row[3],            // Cột D
-      loSanXuat: row[4],          // Cột E
-      ngaySanXuat: row[5],        // Cột F
-      tinhTrangChatLuong: row[6], // Cột G
-      soLuong: row[7],            // Cột H
-      phanXuong: row[8],          // Cột I
-      kho: row[9],                // Cột J
-      ghiChu: row[10]             // Cột K
+      loaiGiaoDich: row[1],
+      tenSanPham: tenSanPham,
+      quyCach: row[3],
+      loSanXuat: row[4],
+      ngaySanXuat: row[5],
+      tinhTrangChatLuong: row[6],
+      soLuong: row[7],
+      phanXuong: phanXuong,
+      kho: kho,
+      ghiChu: row[10]
     };
 
     try {

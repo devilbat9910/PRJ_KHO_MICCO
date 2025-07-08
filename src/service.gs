@@ -88,8 +88,8 @@ function service_processSingleTransaction(formObject) {
   const categoryData = getCategoryData();
 
   // --- VALIDATION ---
-  if (!formObject.tenSanPham || !formObject.soLuong) {
-    throw new Error("Thiếu Tên Sản Phẩm hoặc Số Lượng.");
+  if (!formObject.tenSanPham || !formObject.soLuong || !formObject.ngaySanXuat || !formObject.phanXuong) {
+    throw new Error("Thiếu các yếu tố bắt buộc để tạo SKU: Tên Sản Phẩm, Số Lượng, Ngày Sản Xuất, Phân Xưởng.");
   }
   if (formObject.loaiGiaoDich === 'Điều chuyển' && !formObject.khoDi) {
     throw new Error("Giao dịch 'Điều chuyển' yêu cầu phải có 'Kho Đi'.");
@@ -99,6 +99,9 @@ function service_processSingleTransaction(formObject) {
     throw new Error("Số lượng không hợp lệ. Phải là một số lớn hơn 0.");
   }
 
+  // --- CHUẨN HÓA DỮ LIỆU ---
+  formObject.quyCach = formObject.quyCach ? formObject.quyCach.toUpperCase() : 'NA';
+  
   // --- LOGIC CHÍNH ---
   const sku = generateSku(formObject, categoryData.productMap);
   const productionDate = formObject.ngaySanXuat;
@@ -187,7 +190,7 @@ function generateSku(txObject, productMap) {
         }
     }
 
-    const quyCach = txObject.quyCach || 'NA';
+    const quyCach = txObject.quyCach ? txObject.quyCach.toUpperCase() : 'NA';
 
     // Định dạng ngày tháng từ object Date hoặc string
     const date = new Date(txObject.ngaySanXuat);
@@ -217,7 +220,19 @@ function service_getRecentTransactions() {
   
   // Chỉ lấy các cột cần thiết cho Trang Chính (11 cột từ B đến L)
   const range = logSheet.getRange(startRow, 2, numRows, 11); // Từ cột B (INDEX) đến cột L (Ghi Chú)
-  const data = range.getDisplayValues();
+  const data = range.getValues(); // Lấy giá trị gốc để xử lý ngày tháng
+
+  // Chuẩn hóa định dạng ngày tháng và các giá trị khác
+  data.forEach(row => {
+    // row[4] là 'Ngày Sản Xuất' trong dải ô B:L
+    if (row[4] instanceof Date) {
+      row[4] = Utilities.formatDate(row[4], "GMT+7", "yyyy-MM-dd");
+    }
+    // row[2] là 'Quy Cách'
+    if (typeof row[2] === 'string') {
+      row[2] = row[2].toUpperCase();
+    }
+  });
 
   return data.reverse(); // Đảo ngược để giao dịch mới nhất lên đầu
 }
