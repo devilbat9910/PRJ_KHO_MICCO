@@ -210,3 +210,29 @@ Hệ thống đã được đơn giản hóa và sửa các lỗi logic nhỏ th
 
 ### Tình Trạng Cuối Cùng
 Dự án đã được tái cấu trúc thành công theo mô hình "AllInSheets". Hệ thống hiện có kiến trúc 3 tầng (UI - Service - DB) rõ ràng, giúp tăng hiệu năng, dễ bảo trì và sẵn sàng cho việc mở rộng trong tương lai.
+
+---
+# Nhật Ký Phiên Làm Việc - 08/07/2025 (Tổng kết cuối)
+
+### Giai Đoạn 14: Hoàn Thiện và Bàn Giao
+
+1.  **Mục tiêu:** Tổng kết lại toàn bộ phiên làm việc, sửa các lỗi phát sinh cuối cùng và tạo tài liệu bàn giao chi tiết.
+2.  **Hành động & Triển khai:**
+    *   **Sửa lỗi `onOpen` Trigger:**
+        *   **Triệu chứng:** Menu không hiển thị do lỗi `Identifier 'LOG_SHEET_NAME' has already been declared`.
+        *   **Chẩn đoán:** Phát hiện hằng số được khai báo ở cả `config.js` và `db.gs`.
+        *   **Khắc phục:** Xóa bỏ khai báo trùng lặp trong `db.gs`, chỉ giữ lại ở `config.js`.
+    *   **Nâng cấp Logic Gợi Ý Lô Sản Xuất:**
+        *   **Yêu cầu:** Xử lý nhiều quy tắc tạo mã lô phức tạp và đặc thù.
+        *   **Giải pháp:**
+            1.  Thiết kế lại quy trình để trở nên "data-driven".
+            2.  Thêm cột **"Mã Lô" (cột E)** vào sheet `DANH MUC` để người dùng tự định nghĩa các ký hiệu lô.
+            3.  Viết hàm `suggestLotNumber` ở phía server (`service.gs`) để đọc các quy tắc từ sheet `DANH MUC` và tạo ra chuỗi gợi ý chính xác.
+            4.  Cập nhật `FormNhapLieu.html` để gọi hàm dịch vụ mới này.
+    *   **Tạo Tài Liệu Bàn Giao:**
+        *   **Yêu cầu:** Ghi lại chi tiết các quy tắc vận hành, đặc biệt là quy tắc tạo mã lô.
+        *   **Giải pháp:** Cập nhật hàm `getDocumentationContent` trong file `doc.js` với nội dung hướng dẫn chi tiết về kiến trúc hệ thống mới và các quy tắc quản lý danh mục, quy tắc tạo mã lô. Người dùng có thể tự tạo file Google Docs từ menu.
+    *   **Đồng bộ hóa:** Toàn bộ các thay đổi cuối cùng đã được đẩy lên cả Google Apps Script và kho chứa GitHub.
+
+### Tình Trạng Cuối Cùng
+Hệ thống đã được hoàn thiện theo tất cả các yêu cầu. Các lỗi đã được khắc phục, các tính năng đã được nâng cấp và tài liệu bàn giao chi tiết đã được chuẩn bị. Dự án đã sẵn sàng để kết thúc phiên làm việc.

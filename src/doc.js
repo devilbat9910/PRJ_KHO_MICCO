@@ -69,64 +69,51 @@ function createOrOpenDocumentation() {
  */
 function getDocumentationContent() {
   return `
-# TÀI LIỆU DỰ ÁN: HỆ THỐNG QUẢN LÝ KHO BẰNG GOOGLE APPS SCRIPT
+# TÀI LIỆU VẬN HÀNH: HỆ THỐNG QUẢN LÝ KHO (MICCO)
 
-## 1. TỔNG QUAN DỰ ÁN
+## 1. KIẾN TRÚC HỆ THỐNG (Mô hình AllInSheets)
 
-### Mục tiêu
-Dự án này được xây dựng nhằm mục đích số hóa và tự động hóa quy trình quản lý nhập, xuất, tồn kho sản xuất. Hệ thống giúp thay thế các phương pháp thủ công, giảm thiểu sai sót, cung cấp số liệu tồn kho theo thời gian thực và tạo báo cáo định kỳ một cách nhanh chóng.
-
-### Công nghệ sử dụng
-* **Google Sheets:** Đóng vai trò là cơ sở dữ liệu (database), nơi lưu trữ toàn bộ thông tin về sản phẩm, kho, giao dịch và các báo cáo.
-* **Google Apps Script:** Là "bộ não" của hệ thống, xử lý toàn bộ logic nghiệp vụ, từ việc hiển thị form nhập liệu, tính toán tồn kho, cho đến việc tạo báo cáo.
-* **HTML/CSS/JavaScript (phía client):** Dùng để xây dựng giao diện form nhập liệu thân thiện với người dùng.
-* **Google Cloud Vision API:** Dịch vụ trí tuệ nhân tạo (AI) của Google, được sử dụng cho tính năng nhận dạng ký tự quang học (OCR) để đọc dữ liệu từ ảnh chụp phiếu kho.
-
-### Đối tượng sử dụng
-* **Nhân viên kho/sản xuất:** Người trực tiếp nhập liệu các giao dịch nhập/xuất hàng ngày.
-* **Kế toán kho, quản lý sản xuất:** Người theo dõi, kiểm soát số liệu tồn kho, chốt sổ và tạo báo cáo định kỳ.
-
-## 2. KIẾN TRÚC HỆ THỐNG
+Hệ thống được tái cấu trúc theo mô hình 3 tầng để đảm bảo hiệu năng và khả năng bảo trì.
 
 ### Cấu trúc Google Sheets
-* **Trang Chính:** Giao diện làm việc chính, hiển thị tóm tắt tình hình.
-* **DANH MUC:** Nơi định nghĩa danh sách Sản phẩm, Phân xưởng, Kho.
-* **TON_KHO_HIEN_TAI:** Cơ sở dữ liệu "sống" về tình trạng tồn kho.
-* **LichSu_YYYY_MM:** Các sheet lưu trữ chi tiết toàn bộ lịch sử giao dịch theo tháng.
-* **Snapshot_YYYY_MM:** Các sheet "chụp ảnh" lại tình trạng tồn kho tại thời điểm cuối tháng sau khi "Chốt sổ".
-* **BaoCaoTonKho:** Sheet dùng để hiển thị báo cáo Nhập-Xuất-Tồn.
+* **DANH MUC:** Sheet **quan trọng nhất**, do người dùng quản lý. Đây là nơi định nghĩa toàn bộ danh sách cho các ô lựa chọn và các quy tắc nghiệp vụ.
+* **LOG_GIAO_DICH_tbl:** Bảng dữ liệu thô, lưu lại toàn bộ lịch sử giao dịch nhập/xuất. Dữ liệu ở đây là bất biến.
+* **vw_tonkho:** Một "View" chỉ đọc, tự động dùng hàm QUERY để tổng hợp tồn kho từ sheet LOG_GIAO_DICH_tbl.
+* **Trang Chính:** Giao diện làm việc chính.
 
 ### Cấu trúc Apps Script
-* **Config.gs:** Chứa các biến cấu hình, hàm tạo menu, và hàm thiết lập hệ thống.
-* **Logic.gs:** Chứa toàn bộ logic nghiệp vụ chính của ứng dụng.
-* **Doc.gs:** (File này) Chứa logic tạo và quản lý tài liệu dự án.
-* **FormNhapLieu.html:** File HTML định nghĩa giao diện của form nhập liệu.
+* **Config.gs:** Chứa các biến cấu hình và hàm tạo menu.
+* **db.gs:** Tầng truy cập dữ liệu, chỉ chứa hàm đọc/ghi vào các sheet.
+* **service.gs:** Tầng dịch vụ, chứa logic nghiệp vụ (tạo SKU, gợi ý lô...).
+* **logic.js:** Tầng trung gian, kết nối giao diện với tầng dịch vụ.
+* **doc.js:** (File này) Chứa logic tạo tài liệu hướng dẫn.
+* **FormNhapLieu.html:** Giao diện người dùng.
 
-## 3. QUY TRÌNH HOẠT ĐỘNG
+## 2. QUY TẮC VẬN HÀNH BẮT BUỘC
 
-### Thiết lập ban đầu
-* Cấu hình danh mục trong sheet **DANH MUC**.
-* Chạy chức năng **"Thiết lập ban đầu"** từ menu.
-* Cấu hình **Cloud Vision API** theo hướng dẫn để bật tính năng OCR.
+### Quản Lý Danh Mục (Sheet "DANH MUC")
+Đây là nơi duy nhất để quản lý các danh sách lựa chọn.
 
-### Nhập/Xuất kho hàng ngày
-1.  Mở form nhập liệu từ menu.
-2.  (Tùy chọn) Tải ảnh lên để OCR điền tự động một số trường.
-3.  Kiểm tra và bổ sung thông tin.
-4.  Nhấn "Ghi Lại Giao Dịch".
+* **Cột A (Sản phẩm):** Tên đầy đủ của sản phẩm.
+* **Cột B (Tên viết tắt):** Tên ngắn gọn để hiển thị trên form.
+* **Cột C (Phân xưởng):** Tên đơn vị sản xuất.
+* **Cột D (Kho):** Tên kho lưu trữ.
+* **Cột E (Mã Lô):** **CỰC KỲ QUAN TRỌNG.** Đây là ký hiệu để hệ thống tạo gợi ý Lô Sản Xuất.
 
-### Quy trình cuối tháng
-1.  Đảm bảo nhập đủ giao dịch.
-2.  Chạy chức năng **"Chốt Sổ Cuối Tháng"**.
-3.  Chạy chức năng **"Tạo Báo Cáo Tồn Kho Tháng"** để xem kết quả.
+### Quy Tắc Gợi Ý Lô Sản Xuất
+Hệ thống sẽ tự động tạo gợi ý Lô Sản Xuất khi người dùng chọn **Tên Sản Phẩm**, **Ngày Sản Xuất** và **Đơn Vị Sản Xuất**.
 
-## 4. BẢO TRÌ VÀ MỞ RỘNG
+* **Công thức gợi ý:** \`[MMYY][Mã Lô]\`
+* **Ví dụ:**
+    * Nếu Ngày sản xuất là **07/2025** và "Mã Lô" (cột E) tương ứng là **"LĐ2"**.
+    * Hệ thống sẽ gợi ý: **0725LĐ2**
 
-### Cách thêm/sửa/xóa các danh mục
-* **Sản phẩm, Kho, Phân xưởng:** Chỉnh sửa trực tiếp trên sheet **DANH MUC**.
-* **Kho được theo dõi trên Bảng Tồn Kho:** Mở file **Config.gs**, tìm biến \`MONITORED_WAREHOUSES\` và chỉnh sửa.
+### Các Trường Hợp Đặc Biệt
+* **PX Quảng Ninh:** Để hệ thống gợi ý đúng mã lô **AFHG**, tại dòng sản phẩm ANFO của PX Quảng Ninh, bạn cần điền vào cột "Phân xưởng" là **"PX Quảng Ninh HG"** và cột "Mã Lô" là **"AFHG"**.
+* **ANFO/AF Nhập Tay:** Hệ thống vẫn sẽ đưa ra gợi ý dựa trên các quy tắc trên. Tuy nhiên, người dùng có thể **hoàn toàn bỏ qua gợi ý** và tự nhập tay Lô Sản Xuất theo quy cách nghiệm thu riêng.
 
-### Tùy chỉnh OCR
-* Độ chính xác của OCR phụ thuộc vào các quy tắc trong hàm \`parseRawText(text)\` ở file **Logic.gs**.
+## 3. THIẾT LẬP BAN ĐẦU
+Để thiết lập các sheet hệ thống (\`LOG_GIAO_DICH_tbl\`, \`vw_tonkho\`), từ menu chọn:
+* \`📦 Quản Lý Kho\` -> \`⚙️ Trợ giúp & Cài đặt\` -> \`Thiết lập cấu trúc (Chạy 1 lần)\`
 `;
 }
