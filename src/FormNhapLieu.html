@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <style>
+    body { padding: 15px; font-size: 14px; }
+    .form-group { margin-bottom: 1rem; }
+    .btn { cursor: pointer; }
+    #status { margin-top: 15px; display: none; }
+  </style>
+</head>
+<body>
+  <div id="inputForm">
+    <!-- Các trường nhập liệu -->
+    <div class="form-group">
+      <label for="loaiGiaoDich">Loại Giao Dịch</label>
+      <select class="form-control" id="loaiGiaoDich" onchange="handleTransactionTypeChange()">
+        <option>Nhập</option>
+        <option>Xuất</option>
+        <option>Điều chuyển</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="tenSanPham">Tên Sản Phẩm</label>
+      <select class="form-control" id="tenSanPham" required onchange="suggestLoSanXuat()"><option value="" disabled selected>Đang tải...</option></select>
+    </div>
+    <div class="form-group">
+      <label for="quyCach">Quy cách (D32, B25...)</label>
+      <input type="text" class="form-control" id="quyCach" onkeyup="suggestLoSanXuat()">
+    </div>
+    <div class="form-group">
+      <label for="soLuong">Số Lượng</label>
+      <input type="number" class="form-control" id="soLuong" min="0" required>
+    </div>
+     <div class="form-group">
+      <label for="loSanXuat">Lô Sản Xuất (Gợi ý)</label>
+      <input type="text" class="form-control" id="loSanXuat" placeholder="Điền Tên SP, Quy cách, Ngày SX để gợi ý">
+    </div>
+    <div class="form-group">
+      <label for="ngaySanXuat">Ngày Sản Xuất</label>
+      <input type="date" class="form-control" id="ngaySanXuat" onchange="suggestLoSanXuat()">
+    </div>
+    <div class="form-group">
+      <label for="tinhTrangChatLuong">Tình Trạng Chất Lượng</label>
+      <select class="form-control" id="tinhTrangChatLuong">
+        <option>Đạt</option>
+        <option>Chờ kết quả</option>
+        <option>Mẫu lưu</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="phanXuong">Đơn Vị Sản Xuất</label>
+      <select class="form-control" id="phanXuong"><option value="" disabled selected>Đang tải...</option></select>
+    </div>
+    <div class="form-group" id="kho-di-group" style="display: none;">
+      <label for="khoDi">Kho Đi (Nguồn)</label>
+      <select class="form-control" id="khoDi"><option value="" disabled selected>Đang tải...</option></select>
+    </div>
+    <div class="form-group">
+      <label for="kho" id="kho-label">Kho</label>
+      <select class="form-control" id="kho" required><option value="" disabled selected>Đang tải...</option></select>
+    </div>
+    <div class="form-group">
+      <label for="ghiChu">Ghi Chú</label>
+      <textarea class="form-control" id="ghiChu" rows="2"></textarea>
+    </div>
+    
+    <button class="btn btn-primary btn-block" id="submitButton" onclick="submitForm()">Ghi Lại Giao Dịch</button>
+    <button class="btn btn-secondary btn-block mt-2" id="manualSubmitButton" onclick="submitManualEntry()">Nhập Từ Bảng Thủ Công</button>
+    <div id="status" class="alert mt-3"></div>
+  </div>
+
+  <script>
+    // Chạy khi form được tải
+    document.addEventListener("DOMContentLoaded", function() {
+      resetForm();
+      google.script.run
+        .withSuccessHandler(populateDropdowns)
+        .withFailureHandler(handleDropdownError)
+        .getDropdownData();
+      document.getElementById('ngaySanXuat').valueAsDate = new Date(); // Set ngày sản xuất mặc định
+    });
+
+    // Reset form về trạng thái ban đầu
+    function resetForm() {
+        document.getElementById('loaiGiaoDich').selectedIndex = 0;
+        document.getElementById('tenSanPham').selectedIndex = 0;
+        document.getElementById('soLuong').value = '';
+        document.getElementById('loSanXuat').value = '';
+        document.getElementById('ngaySanXuat').valueAsDate = new Date();
+        document.getElementById('tinhTrangChatLuong').selectedIndex = 0;
+        document.getElementById('phanXuong').selectedIndex = 0;
+        document.getElementById('kho').selectedIndex = 0;
+        document.getElementById('ghiChu').value = '';
+        
+        const khoDiSelect = document.getElementById('khoDi');
+        if (khoDiSelect) khoDiSelect.selectedIndex = 0;
+
+        handleTransactionTypeChange();
+
+        document.getElementById('status').style.display = 'none';
+        const submitBtn = document.getElementById('submitButton');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Ghi Lại Giao Dịch';
+    }
+
+    // Điền dữ liệu vào các dropdown
+    function populateDropdowns(data) {
+      populateSelect('tenSanPham', data.products);
+      populateSelect('phanXuong', data.factories);
+      populateSelect('kho', data.warehouses);
+      populateSelect('khoDi', data.warehouses);
+    }
+
+    // Hàm xử lý lỗi khi không tải được dropdown
+    function handleDropdownError(err) {
+      const message = 'Không thể tải dữ liệu cho các ô lựa chọn. Vui lòng kiểm tra lại sheet "DANH MUC" và thử lại. Lỗi: ' + err.message;
+      showStatus(message, false);
+      document.getElementById('tenSanPham').disabled = true;
+      document.getElementById('phanXuong').disabled = true;
+      document.getElementById('kho').disabled = true;
+    }
+
+    function populateSelect(elementId, options) {
+      const select = document.getElementById(elementId);
+      if (!select) return; // Bỏ qua nếu không tìm thấy element
+      select.innerHTML = '<option value="" disabled selected>-- Chọn --</option>';
+      options.forEach(function(option) {
+        if (typeof option === 'object' && option !== null && option.hasOwnProperty('value') && option.hasOwnProperty('text')) {
+          select.add(new Option(option.text, option.value));
+        } else {
+          select.add(new Option(option, option));
+        }
+      });
+    }
+
+    // Gửi dữ liệu form đi
+    function submitForm() {
+      const submitBtn = document.getElementById('submitButton');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Đang xử lý...';
+      
+      const formObject = {
+        // ngayGiaoDich sẽ được tạo ở backend
+        loaiGiaoDich: document.getElementById('loaiGiaoDich').value,
+        tenSanPham: document.getElementById('tenSanPham').value,
+        quyCach: document.getElementById('quyCach').value,
+        soLuong: document.getElementById('soLuong').value,
+        loSanXuat: document.getElementById('loSanXuat').value,
+        ngaySanXuat: document.getElementById('ngaySanXuat').value,
+        tinhTrangChatLuong: document.getElementById('tinhTrangChatLuong').value,
+        phanXuong: document.getElementById('phanXuong').value,
+        kho: document.getElementById('kho').value,
+        khoDi: document.getElementById('khoDi').value,
+        ghiChu: document.getElementById('ghiChu').value,
+      };
+
+      // --- VALIDATION PHÍA CLIENT ---
+      if (!formObject.tenSanPham || !formObject.kho) {
+        showStatus('Vui lòng điền đầy đủ Tên Sản Phẩm và Kho.', false);
+        submitBtn.disabled = false; submitBtn.textContent = 'Ghi Lại Giao Dịch'; return;
+      }
+      if (formObject.loaiGiaoDich === 'Điều chuyển' && !formObject.khoDi) {
+        showStatus('Vui lòng chọn Kho Đi cho giao dịch điều chuyển.', false);
+        submitBtn.disabled = false; submitBtn.textContent = 'Ghi Lại Giao Dịch'; return;
+      }
+      const soLuong = Number(formObject.soLuong);
+      if (isNaN(soLuong) || soLuong <= 0) {
+        showStatus('Số lượng phải là một số lớn hơn 0.', false);
+        submitBtn.disabled = false; submitBtn.textContent = 'Ghi Lại Giao Dịch'; return;
+      }
+
+      google.script.run.withSuccessHandler(function(response) {
+        showStatus(response.message, response.success);
+        if(response.success) { 
+          resetForm(); 
+        } else { 
+          submitBtn.disabled = false; 
+          submitBtn.textContent = 'Ghi Lại Giao Dịch'; 
+        }
+      }).withFailureHandler(function(err) {
+        showStatus('Lỗi: ' + err.message, false);
+        submitBtn.disabled = false; 
+        submitBtn.textContent = 'Ghi Lại Giao Dịch';
+      }).processFormData(formObject);
+    }
+
+    // Hiển thị thông báo
+    function showStatus(message, isSuccess) {
+      const statusDiv = document.getElementById('status');
+      statusDiv.textContent = message;
+      statusDiv.className = isSuccess ? 'alert alert-success mt-3' : 'alert alert-danger mt-3';
+      statusDiv.style.display = 'block';
+    }
+
+    // Gửi yêu cầu nhập liệu từ bảng thủ công
+    function submitManualEntry() {
+      const manualBtn = document.getElementById('manualSubmitButton');
+      manualBtn.disabled = true;
+      manualBtn.textContent = 'Đang nhập...';
+      showStatus('Đang đọc dữ liệu từ bảng nhập thủ công...', true);
+
+      google.script.run
+        .withSuccessHandler(function(response) {
+          showStatus(response.message, response.success);
+          if(response.success) {
+            resetForm();
+          }
+          manualBtn.disabled = false;
+          manualBtn.textContent = 'Nhập Từ Bảng Thủ Công';
+        })
+        .withFailureHandler(function(err) {
+          showStatus('Lỗi khi nhập thủ công: ' + err.message, false);
+          manualBtn.disabled = false;
+          manualBtn.textContent = 'Nhập Từ Bảng Thủ Công';
+        })
+        .processManualEntry();
+    }
+
+    // Xử lý thay đổi giao diện khi chọn loại giao dịch
+    function handleTransactionTypeChange() {
+      const txType = document.getElementById('loaiGiaoDich').value;
+      const khoDiGroup = document.getElementById('kho-di-group');
+      const khoLabel = document.getElementById('kho-label');
+
+      if (txType === 'Điều chuyển') {
+        khoDiGroup.style.display = 'block';
+        khoLabel.textContent = 'Kho Đến (Đích)';
+      } else {
+        khoDiGroup.style.display = 'none';
+        khoLabel.textContent = 'Kho';
+      }
+    }
+
+    function suggestLoSanXuat() {
+      const tenSanPhamSelect = document.getElementById('tenSanPham');
+      const tenSanPhamText = tenSanPhamSelect.options[tenSanPhamSelect.selectedIndex].text; // Lấy text (tên viết tắt)
+      const ngaySanXuat = document.getElementById('ngaySanXuat').value;
+
+      if (tenSanPhamText && ngaySanXuat && tenSanPhamText !== '-- Chọn --') {
+        const date = new Date(ngaySanXuat);
+        const month = ('0' + (date.getMonth() + 1)).slice(-2);
+        const year = date.getFullYear().toString().slice(-2);
+        // Sửa lỗi: Không loại bỏ ký tự đặc biệt để giữ đúng tên viết tắt như NTLĐ2
+        const spCode = tenSanPhamText;
+        
+        document.getElementById('loSanXuat').value = `Lô ${month}${year} ${spCode}`;
+      }
+    }
+  </script>
+</body>
+</html>

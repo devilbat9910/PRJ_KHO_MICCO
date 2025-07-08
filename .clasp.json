@@ -1,0 +1,12 @@
+{
+  "scriptId": "1zdedLOnCeZnKehgzhvQrlabiok4Ns4Jkxg309jf15u4dp6mD929rm-0t",
+  "rootDir": "src",
+  "filePushOrder": [
+    "config.js",
+    "db.gs",
+    "service.gs",
+    "logic.js",
+    "doc.js",
+    "FormNhapLieu.html"
+  ]
+}
