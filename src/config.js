@@ -50,56 +50,53 @@ function onOpen() {
 }
 
 /**
- * Hàm thiết lập cấu trúc cần thiết cho hệ thống theo mô hình "Ma trận Tồn kho".
- * Sheet 'DANH MUC' và 'LOG_GIAO_DICH_tbl' được giữ lại, các sheet tồn kho cũ bị xóa.
- * Tạo ra sheet 'TON_KHO_tonghop' với cấu trúc cột động.
+ * REFACTORED: Hàm thiết lập cấu trúc theo template cố định mới cho "TON_KHO_tonghop".
+ * Xóa các sheet tồn kho cũ và tạo lại sheet ma trận với các cột và công thức được định nghĩa trước.
  */
 function setupInitialStructure() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const ui = SpreadsheetApp.getUi();
 
-  // 1. Định nghĩa cấu trúc cho sheet Tồn Kho Tổng Hợp
+  // 1. Định nghĩa cấu trúc CỐ ĐỊNH cho sheet Tồn Kho Tổng Hợp
   const MASTER_INVENTORY_SHEET = 'TON_KHO_tonghop';
-  
-  // Các cột định danh cố định
-  const identifierHeaders = [
-    'INDEX (SKU)', 'Tên Viết Tắt', 'Quy Cách', 'Đơn Vị Sản Xuất',
-    'Lô Sản Xuất', 'Ngày Sản Xuất', 'Tình Trạng Chất Lượng', 'Ngày Thử Nổ'
-  ];
-
-  // Lấy danh sách các cột kho động từ sheet DANH MUC
-  const warehouseHeaders = getWarehouseNames();
-  if (warehouseHeaders.length === 0) {
-    ui.alert('Lỗi: Không tìm thấy tên kho nào trong cột D của sheet "DANH MUC". Vui lòng kiểm tra lại.');
-    return;
-  }
-
-  // Kết hợp hai danh sách để tạo tiêu đề hoàn chỉnh
-  const fullHeaders = [identifierHeaders.concat(warehouseHeaders)];
+  const fullHeaders = [[
+    'INDEX', 'Tên_SP', 'Quy_Cách', 'Lô_SX', 'Ngày_SX', 'QC_Status', 'ĐV_SX',
+    'ĐT3', 'ĐT4', 'ĐT5', 'ĐT6', 'ĐT7', 'ĐT8', 'ĐT9',
+    'Tổng_ĐT', 'CP4'
+  ]];
+  const identifierColumnCount = 7; // Số cột định danh
+  const totalColumnPosition = 15; // Vị trí cột O (Tổng_ĐT)
 
   // 2. Tạo hoặc làm mới sheet Tồn Kho Tổng Hợp
   let inventorySheet = ss.getSheetByName(MASTER_INVENTORY_SHEET);
   if (inventorySheet) {
-    inventorySheet.clear(); // Xóa dữ liệu cũ nếu sheet đã tồn tại
+    inventorySheet.clear();
   } else {
     inventorySheet = ss.insertSheet(MASTER_INVENTORY_SHEET);
   }
-  
+
+  // 3. Ghi tiêu đề và định dạng
   inventorySheet.getRange(1, 1, 1, fullHeaders[0].length)
     .setValues(fullHeaders)
     .setFontWeight('bold')
     .setBackground('#f3f3f3');
-  inventorySheet.setFrozenColumns(identifierHeaders.length); // Cố định các cột định danh
+  inventorySheet.setFrozenColumns(identifierColumnCount);
   inventorySheet.setFrozenRows(1);
 
-  // 3. Xóa các sheet tồn kho cũ không còn sử dụng
+  // 4. Chèn công thức ARRAYFORMULA cho cột "Tổng_ĐT"
+  const arrayFormulaCell = inventorySheet.getRange(2, totalColumnPosition);
+  // Công thức tính tổng từ cột H (ĐT3) đến cột N (ĐT9)
+  const formula = '=ARRAYFORMULA(IF(A2:A="", "", H2:H+I2:I+J2:J+K2:K+L2:L+M2:M+N2:N))';
+  arrayFormulaCell.setFormula(formula);
+
+  // 5. Xóa các sheet tồn kho cũ không còn sử dụng
   const oldViewSheet = ss.getSheetByName(VIEW_INVENTORY_SHEET_NAME);
   if (oldViewSheet) ss.deleteSheet(oldViewSheet);
 
   const oldInventorySheet = ss.getSheetByName(INVENTORY_SHEET_NAME);
   if (oldInventorySheet) ss.deleteSheet(oldInventorySheet);
 
-  ui.alert(`Thiết lập thành công! Sheet "${MASTER_INVENTORY_SHEET}" đã được tạo/cập nhật với ${warehouseHeaders.length} kho.`);
+  ui.alert(`Thiết lập thành công! Sheet "${MASTER_INVENTORY_SHEET}" đã được tạo/cập nhật theo template mới.`);
 }
 
 /**

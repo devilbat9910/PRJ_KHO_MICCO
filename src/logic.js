@@ -52,17 +52,20 @@ function recordTransaction(txObject) {
  */
 function processFormData(formObject) {
   try {
-    // Gọi thẳng vào service layer để xử lý
+    Logger.log("Bắt đầu service_processSingleTransaction...");
     const result = service_processSingleTransaction(formObject);
-    
-    // Nếu xử lý thành công, cập nhật bảng RECENT
+    Logger.log("Hoàn thành service_processSingleTransaction. Kết quả: " + JSON.stringify(result));
+
     if (result.success) {
+      Logger.log("Bắt đầu updateDashboardRecentTransactions...");
       updateDashboardRecentTransactions();
+      Logger.log("Hoàn thành updateDashboardRecentTransactions.");
     }
     
     return result;
   } catch (e) {
-    Logger.log(`Lỗi trong processFormData (logic.js): ${e.message}`);
+    // Ghi lại toàn bộ stack trace để gỡ lỗi chi tiết hơn
+    Logger.log(`Lỗi trong processFormData (logic.js): ${e.stack}`);
     return { success: false, message: 'Lỗi: ' + e.message };
   }
 }
@@ -96,10 +99,21 @@ function updateDashboardRecentTransactions() {
     return;
   }
   const transactions = service_getRecentTransactions();
+
+  // --- Thêm log chi tiết để gỡ lỗi ---
+  Logger.log("Dữ liệu transactions nhận được: " + JSON.stringify(transactions));
+  Logger.log(`Số lượng giao dịch: ${transactions.length}`);
+  if (transactions.length > 0) {
+    Logger.log(`Số cột của giao dịch đầu tiên: ${transactions[0].length}`);
+  }
+  // --- Kết thúc log ---
+
   const targetRange = mainSheet.getRange(RECENT_TRANSACTIONS_RANGE);
   targetRange.offset(1, 0, targetRange.getNumRows() - 1).clearContent(); // Xóa dữ liệu cũ, giữ header
-  if (transactions.length > 0) {
+  if (transactions.length > 0 && transactions[0].length > 0) {
     mainSheet.getRange(4, 1, transactions.length, transactions[0].length).setValues(transactions);
+  } else {
+    Logger.log("Không có giao dịch nào để hiển thị hoặc dữ liệu giao dịch không hợp lệ (0 cột).");
   }
 }
 
@@ -179,9 +193,29 @@ function processManualInputTable() {
 }
 
 // Các hàm báo cáo và chốt sổ cần được viết lại để tương thích với cấu trúc dữ liệu mới.
+/**
+ * Hàm cầu nối để gọi dịch vụ tạo snapshot tồn kho hàng tháng.
+ */
 function createMonthlySnapshot() {
-  SpreadsheetApp.getUi().alert('Chức năng này đang được cập nhật để tương thích với cấu trúc dữ liệu mới.');
+  const ui = SpreadsheetApp.getUi();
+  try {
+    const result = service_createMonthlySnapshot();
+    ui.alert(result.message);
+  } catch (e) {
+    Logger.log(`Lỗi khi tạo snapshot: ${e.stack}`);
+    ui.alert(`Đã xảy ra lỗi: ${e.message}`);
+  }
 }
+/**
+ * Hàm cầu nối để gọi dịch vụ tạo báo cáo tồn kho.
+ */
 function generateMonthlyReport() {
-  SpreadsheetApp.getUi().alert('Chức năng này đang được cập nhật để tương thích với cấu trúc dữ liệu mới.');
+  const ui = SpreadsheetApp.getUi();
+  try {
+    const result = service_generateMonthlyReport();
+    ui.alert(result.message);
+  } catch (e) {
+    Logger.log(`Lỗi khi tạo báo cáo: ${e.stack}`);
+    ui.alert(`Đã xảy ra lỗi khi tạo báo cáo: ${e.message}`);
+  }
 }

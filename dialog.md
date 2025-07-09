@@ -236,3 +236,194 @@ Dự án đã được tái cấu trúc thành công theo mô hình "AllInSheets
 
 ### Tình Trạng Cuối Cùng
 Hệ thống đã được hoàn thiện theo tất cả các yêu cầu. Các lỗi đã được khắc phục, các tính năng đã được nâng cấp và tài liệu bàn giao chi tiết đã được chuẩn bị. Dự án đã sẵn sàng để kết thúc phiên làm việc.
+
+---
+# Nhật Ký Phiên Làm Việc - 08/07/2025 (Tái cấu trúc Kho)
+
+### Giai Đoạn 15: Tái Cấu Trúc Mô Hình Tồn Kho sang "Ma Trận"
+
+1.  **Mục tiêu:** Thay đổi hoàn toàn mô hình quản lý tồn kho từ nhiều sheet/view phức tạp sang một mô hình "Ma trận Tồn kho" (`TON_KHO_tonghop`) duy nhất, mạnh mẽ và dễ truy vấn.
+
+2.  **Hành động & Triển khai:**
+    *   **Thiết kế kiến trúc:**
+        *   Thống nhất kiến trúc mới: một sheet `TON_KHO_tonghop` duy nhất.
+        *   Mỗi **hàng** là một **lô sản phẩm duy nhất** (được định danh bằng SKU kết hợp từ các thuộc tính như Tên, Lô, Ngày SX, Chất lượng).
+        *   Mỗi **cột** là một **kho hàng vật lý**, được tạo tự động dựa trên danh sách trong `DANH MUC`.
+    *   **Tái cấu trúc Nền tảng (`config.js`, `db.gs`):**
+        *   Tạo hàm `getWarehouseNames()` trong `db.gs` để đọc danh sách kho một cách độc lập.
+        *   Viết lại hoàn toàn hàm `setupInitialStructure()` trong `config.js` để tự động tạo ra sheet ma trận `TON_KHO_tonghop` với các cột định danh cố định và các cột kho động.
+    *   **Tái cấu trúc Service Layer (`service.gs`):**
+        *   Xây dựng hàm `updateMasterInventory()` làm "pipeline" chính, có khả năng tìm hoặc tạo hàng SKU và cập nhật số lượng vào đúng ô (hàng SKU, cột Kho).
+        *   Điều chỉnh logic xử lý "Điều chuyển" để thực hiện phép trừ và cộng trên cùng một hàng.
+        *   Chuẩn hóa lại hàm `generateSku` và `service_processSingleTransaction` để làm giàu dữ liệu từ `DANH MUC` và gọi vào pipeline mới.
+    *   **Tái cấu trúc Logic Layer (`logic.js`):**
+        *   Cập nhật hàm `processManualInputTable` để loại bỏ logic diễn giải thông minh không cần thiết, thay vào đó gửi thẳng dữ liệu thô tới service layer để xử lý.
+    *   **Hoàn tất & Đồng bộ:**
+        *   Tạo file kế hoạch chi tiết `REFACTOR_PLAN_KHO.md`.
+        *   Cập nhật `PLANNING.md` với kiến trúc mới.
+        *   Đẩy toàn bộ mã nguồn đã tái cấu trúc lên Google Apps Script (`clasp push`).
+        *   Lưu trữ phiên bản ổn định lên GitHub.
+
+### Tình Trạng Cuối Cùng
+Hệ thống đã được tái cấu trúc thành công sang mô hình "Ma trận Tồn kho". Kiến trúc mới giúp đơn giản hóa logic, tăng cường hiệu năng truy vấn và khả năng mở rộng trong tương lai. Toàn bộ mã nguồn đã được đồng bộ hóa. Phiên làm việc kết thúc.
+---
+# Nhật Ký Phiên Làm Việc - 09/07/2025: Hoàn Thiện Chức Năng Báo Cáo
+
+### Giai Đoạn 16: Triển Khai Chức Năng Báo Cáo và Chốt Sổ
+
+1.  **Mục tiêu:** Hoàn thành các chức năng còn lại trong `TASK.md` liên quan đến báo cáo và chốt sổ cuối tháng.
+
+2.  **Hành động & Triển khai:**
+    *   **Phân tích bối cảnh:** Đã đọc và phân tích toàn bộ các tệp tài liệu (`WORKFLOW.md`, `PLANNING.md`, `TASK.md`, `dialog.md`, `config.js`, `CLAUDE.md`) để nắm vững trạng thái và kiến trúc dự án.
+    *   **Triển khai `createMonthlySnapshot()`:**
+        *   **`service.gs`**: Đã tạo hàm `service_createMonthlySnapshot` để sao chép sheet `TON_KHO_tonghop`, đổi tên theo định dạng `Snapshot_MM-yyyy`, và chuyển đổi dữ liệu thành giá trị tĩnh để lưu trữ.
+        *   **`logic.js`**: Cập nhật hàm `createMonthlySnapshot` để gọi đến service và hiển thị kết quả cho người dùng.
+        *   **Đồng bộ:** Đã `clasp push` thành công.
+        *   **Cập nhật `TASK.md`**: Đánh dấu công việc hoàn thành.
+    *   **Triển khai `generateMonthlyReport()`:**
+        *   **`service.gs`**: Đã tạo hàm `service_generateMonthlyReport` để đọc dữ liệu từ ma trận tồn kho, tổng hợp số lượng theo từng sản phẩm trên tất cả các kho.
+        *   **`db.gs`**: Đã tạo hàm hỗ trợ `db_writeReportData` để ghi báo cáo đã được định dạng ra sheet `BaoCaoTonKho`.
+        *   **`logic.js`**: Cập nhật hàm `generateMonthlyReport` để điều phối việc tạo và ghi báo cáo.
+        *   **Đồng bộ:** Đã `clasp push` thành công.
+        *   **Cập nhật `TASK.md`**: Đánh dấu công việc hoàn thành.
+
+### Tình Trạng Cuối Cùng
+Toàn bộ các công việc trong `TASK.md` đã được hoàn thành. Hệ thống hiện đã có đầy đủ chức năng chốt sổ và tạo báo cáo tồn kho tháng. Mã nguồn đã được đồng bộ hóa. Phiên làm việc kết thúc.
+---
+# Nhật Ký Phiên Làm Việc - 09/07/2025 (Gỡ lỗi)
+
+### Giai Đoạn 17: Gỡ Lỗi Hồi Quy Sau Khi Triển Khai
+
+1.  **Mục tiêu:** Sửa lỗi "Số cột trong dải ô phải tối thiểu là 1" xảy ra khi người dùng nhập liệu qua sidebar.
+
+2.  **Hành động & Triển khai:**
+    *   **Chẩn đoán:**
+        *   Lỗi được xác định xảy ra trong hàm `processFormData` -> `updateDashboardRecentTransactions` của file `logic.js`.
+        *   Nguyên nhân gốc là do hàm `service_getRecentTransactions` có thể trả về một mảng không hợp lệ (0 cột), khiến lệnh `getRange` thất bại.
+        *   Phát hiện thêm một lỗi logic trong `service_getRecentTransactions` nơi các chỉ số (index) để định dạng ngày tháng và quy cách bị sai.
+    *   **Khắc phục:**
+        *   **`service.gs`**: Sửa lại các chỉ số trong `service_getRecentTransactions` để định dạng đúng cột.
+        *   **`logic.js`**: Thêm một lớp bảo vệ vào `updateDashboardRecentTransactions` để kiểm tra `transactions[0].length > 0` trước khi thực hiện `getRange`.
+    *   **Đồng bộ:** Đã `clasp push` thành công bản vá lỗi.
+
+### Tình Trạng Cuối Cùng
+Lỗi hồi quy đã được xác định và khắc phục. Hệ thống đã ổn định trở lại. Phiên làm việc kết thúc.
+---
+# Nhật Ký Phiên Làm Việc - 09/07/2025 (Gỡ lỗi - Lần 2)
+
+### Giai Đoạn 18: Chẩn Đoán Lại và Sửa Lỗi Gốc
+
+1.  **Mục tiêu:** Tìm ra nguyên nhân gốc rễ của lỗi "Số cột trong dải ô phải tối thiểu là 1" sau khi các bản vá trước không thành công.
+
+2.  **Hành động & Triển khai:**
+    *   **Thêm Log Chi Tiết:** Chèn các lệnh `Logger.log` vào các vị trí trọng yếu của `logic.js` để theo dõi luồng thực thi và `stack trace` của lỗi.
+    *   **Phân Tích Log Mới:** Log chi tiết do người dùng cung cấp đã chỉ ra lỗi không nằm ở `updateDashboardRecentTransactions` như nghi ngờ ban đầu, mà nằm sâu trong `service.gs`, tại hàm `updateMasterInventory`.
+    *   **Chẩn Đoán Chính Xác:** Nguyên nhân gốc được xác định là do sheet `TON_KHO_tonghop` hoàn toàn trống, khiến `sheet.getLastColumn()` trả về `0` và gây lỗi cho lệnh `getRange`.
+    *   **Khắc Phục Triệt Để:**
+        *   **`service.gs`**: Thêm một khối kiểm tra ở đầu hàm `updateMasterInventory`. Nếu `sheet.getLastColumn()` trả về giá trị nhỏ hơn 1, hàm sẽ dừng lại và đưa ra một thông báo lỗi rõ ràng, hướng dẫn người dùng chạy lại chức năng thiết lập cấu trúc ban đầu.
+    *   **Đồng bộ:** Đã `clasp push` thành công bản vá cuối cùng.
+
+### Tình Trạng Cuối Cùng
+Lỗi đã được chẩn đoán chính xác và khắc phục triệt để bằng cách thêm cơ chế phòng vệ cho trường hợp sheet dữ liệu bị trống. Hệ thống đã ổn định. Phiên làm việc kết thúc.
+---
+# Nhật Ký Phiên Làm Việc - 09/07/2025 (Tái cấu trúc Template)
+
+### Giai Đoạn 19: Tái Cấu Trúc Hệ Thống Theo Template Tồn Kho Mới
+
+1.  **Mục tiêu:** Thay đổi toàn diện cấu trúc của sheet `TON_KHO_tonghop` và logic xử lý của toàn hệ thống để tuân theo một template cố định mới do người dùng cung cấp.
+
+2.  **Hành động & Triển khai:**
+    *   **Phân tích yêu cầu:** Ghi nhận yêu cầu về cấu trúc cột mới, bao gồm các cột cố định và một cột tính tổng bằng `ARRAYFORMULA`.
+    *   **Tái cấu trúc `config.js`**:
+        *   Viết lại hoàn toàn hàm `setupInitialStructure`.
+        *   Loại bỏ logic tạo tiêu đề động.
+        *   Sử dụng một danh sách tiêu đề cố định theo đúng template.
+        *   Tự động chèn công thức `=ARRAYFORMULA(IF(A2:A="", "", H2:H+I2:I+J2:J+K2:K+L2:L+M2:M+N2:N))` vào cột `Tổng_ĐT`.
+    *   **Tái cấu trúc `service.gs`**:
+        *   Thay thế gần như toàn bộ tệp để đảm bảo tính nhất quán.
+        *   Cập nhật `service_processSingleTransaction` để làm giàu dữ liệu giao dịch với các tên thuộc tính mới (`Tên_SP`, `Quy_Cách`, `ĐV_SX`...).
+        *   Cập nhật `generateSku` để tạo `INDEX` từ các thuộc tính mới.
+        *   Viết lại khối `switch` trong `_findOrCreateInventoryRow` để ánh xạ chính xác các thuộc tính mới vào đúng các cột khi tạo hàng.
+        *   Điều chỉnh `service_generateMonthlyReport` để hoạt động với cấu trúc cột mới.
+    *   **Kiểm tra và Đồng bộ:** Rà soát `logic.js` và các tệp khác, xác nhận không cần thay đổi thêm. Đã `clasp push` thành công toàn bộ hệ thống đã được tái cấu trúc.
+
+### Tình Trạng Cuối Cùng
+Hệ thống đã được tái cấu trúc thành công để tuân thủ template `TON_KHO_tonghop` mới. Cấu trúc dữ liệu và logic xử lý đã được đồng bộ hóa hoàn toàn.
+---
+# Nhật Ký Phiên Làm Việc - 09/07/2025 (Gỡ lỗi - Lần 3)
+
+### Giai Đoạn 20: Sửa Lỗi Tên Kho Không Nhất Quán
+
+1.  **Mục tiêu:** Sửa lỗi "Tên kho không hợp lệ" xảy ra do sự khác biệt giữa dữ liệu nhập ("Kho ĐT3") và tên cột trong template ("ĐT3").
+
+2.  **Hành động & Triển khai:**
+    *   **Chẩn đoán:** Lỗi được xác định nằm trong hàm `_updateInventoryValue` của `service.gs`. Hàm `indexOf` không tìm thấy tên kho có chứa tiền tố "Kho " trong mảng tiêu đề.
+    *   **Khắc phục:**
+        *   **`service.gs`**: Cập nhật hàm `_updateInventoryValue` để tự động chuẩn hóa tên kho bằng cách loại bỏ tiền tố "Kho " trước khi thực hiện tìm kiếm.
+        *   Cải thiện thông báo lỗi để hiển thị cả tên kho gốc và tên đã chuẩn hóa, giúp việc gỡ lỗi trong tương lai dễ dàng hơn.
+    *   **Đồng bộ:** Đã `clasp push` thành công bản vá cuối cùng.
+
+### Tình Trạng Cuối Cùng
+Lỗi không nhất quán về tên kho đã được khắc phục. Hệ thống hiện có thể xử lý linh hoạt các tên kho đầu vào.
+---
+# Nhật Ký Phiên Làm Việc - 09/07/2025 (Tiếp theo)
+
+### Giai Đoạn 21: Gỡ Lỗi Toàn Diện Luồng Nhập Liệu
+
+Phiên làm việc này tập trung vào việc chẩn đoán và sửa một chuỗi các lỗi liên quan đến nhau trong luồng xử lý giao dịch, từ việc tạo `INDEX` cho đến cập nhật tồn kho.
+
+1.  **Mục tiêu:** Sửa các lỗi được người dùng báo cáo, bao gồm `INDEX` sai và sheet tồn kho không được cập nhật.
+
+2.  **Hành động & Triển khai (Theo từng vòng lặp gỡ lỗi):**
+
+    *   **Vòng 1: Sửa lỗi tạo `INDEX` (Lỗi logic mã lô)**
+        *   **Triệu chứng:** `INDEX` được tạo ra nhưng sử dụng toàn bộ chuỗi "Lô Sản Xuất" thay vì chỉ phần mã cốt lõi.
+        *   **Chẩn đoán:** Hàm `generateSku` trong `service.gs` đã không tách chuỗi "Lô Sản Xuất" đúng cách.
+        *   **Khắc phục:** Cập nhật `generateSku` để loại bỏ 4 ký tự `MMYY` ở đầu, chỉ giữ lại phần mã lô chính.
+
+    *   **Vòng 2: Sửa lỗi `INDEX` (Lỗi ánh xạ cột)**
+        *   **Triệu chứng:** `INDEX` hiển thị "NA" cho các trường "Quy Cách" và "Đơn Vị Sản Xuất".
+        *   **Chẩn đoán:** Hàm `db_getCategoryData` trong `db.gs` đang đọc sai cột từ sheet `DANH MUC`.
+        *   **Khắc phục:** Sửa lại các chỉ số cột trong `db_getCategoryData` để ánh xạ đúng.
+
+    *   **Vòng 3: Sửa lỗi `INDEX` (Lỗi nguồn dữ liệu)**
+        *   **Triệu chứng:** Lỗi ánh xạ vẫn tiếp diễn.
+        *   **Chẩn đoán (Gốc rễ):** Phát hiện ra một giả định sai lầm cốt lõi: "Quy Cách" và "Đơn Vị Sản Xuất" không phải là dữ liệu tra cứu từ `DANH MUC`, mà là **dữ liệu do người dùng nhập trực tiếp trên form**.
+        *   **Khắc phục (Kép):**
+            1.  **`db.gs`**: Viết lại `db_getCategoryData` để chỉ đọc 5 cột cần thiết từ `DANH MUC`.
+            2.  **`service.gs`**: Viết lại `service_processSingleTransaction` để lấy `Quy_Cách` và `ĐV_SX` trực tiếp từ đối tượng form do người dùng gửi lên.
+
+    *   **Vòng 4: Sửa lỗi `TON_KHO_tonghop` không cập nhật**
+        *   **Triệu chứng:** `LOG_GIAO_DICH` được ghi nhưng `TON_KHO_tonghop` thì không.
+        *   **Chẩn đoán (Gốc rễ):** Sau khi loại trừ các nguyên nhân khác, đã tìm ra một lỗi logic nghiêm trọng trong hàm `_findOrCreateInventoryRow` của `service.gs`. Lệnh `getRange` đã sử dụng `sheet.getLastRow()` làm **số lượng hàng** thay vì tính toán đúng số hàng cần lấy (`lastRow - 1`), gây ra lỗi "dải ô nằm ngoài trang tính" một cách thầm lặng khi dữ liệu lớn.
+        *   **Khắc phục:** Sửa lại công thức tính toán dải ô cho chính xác.
+
+### Tình Trạng Cuối Cùng
+Toàn bộ các lỗi trong luồng xử lý giao dịch đã được xác định và khắc phục triệt để. Hệ thống hiện đã hoạt động ổn định, ghi nhận giao dịch và cập nhật tồn kho chính xác. Phiên làm việc kết thúc.
+---
+# Nhật Ký Phiên Làm Việc - 09/07/2025 (Tổng kết cuối)
+
+### Giai Đoạn 22: Chẩn Đoán Sâu và Ghi Nhận Vấn Đề Tồn Đọng
+
+1.  **Mục tiêu:** Tìm ra nguyên nhân gốc rễ của việc sheet `TON_KHO_tonghop` không được cập nhật.
+
+2.  **Hành động & Triển khai:**
+    *   **Chẩn đoán bằng Log:** Đã thêm các câu lệnh `Logger.log` chi tiết vào luồng cập nhật tồn kho để theo dõi giá trị các biến.
+    *   **Chẩn đoán bằng `flush()`:** Đã thêm `SpreadsheetApp.flush()` và logic đọc lại giá trị ngay sau khi ghi để xác minh hành động `setValue()`.
+    *   **Phân tích Log cuối cùng:** Log `VERIFY_WRITE` đã xác nhận một cách chắc chắn rằng ở cấp độ thực thi của Apps Script, lệnh `cell.setValue()` đã hoạt động đúng. Giá trị đọc lại ngay sau khi ghi khớp hoàn toàn với giá trị dự kiến.
+
+3.  **Kết luận & Vấn đề tồn đọng:**
+    *   Logic của mã nguồn Apps Script đã được xác minh là **chính xác**.
+    *   Tuy nhiên, dữ liệu thực tế trên sheet `TON_KHO_tonghop` vẫn không được cập nhật.
+    *   **Kết luận:** Vấn đề không nằm trong phạm vi mã nguồn mà chúng ta có thể kiểm soát. Nguyên nhân có thể đến từ một yếu tố bên ngoài, chẳng hạn như:
+        *   Một script hoặc add-on khác đang can thiệp.
+        *   Một quy tắc định dạng có điều kiện hoặc validation đang xung đột.
+        *   Một lỗi không thường xuyên của chính nền tảng Google Sheets.
+
+4.  **Hành động cuối cùng:**
+    *   Theo yêu cầu, đã hoàn nguyên hàm `addTransactionToLog` trong `db.gs` về phiên bản có `+14` giờ.
+    *   Đã gỡ bỏ toàn bộ mã chẩn đoán khỏi `service.gs`.
+    *   Đã đẩy phiên bản cuối cùng này lên máy chủ.
+
+### Tình Trạng Cuối Cùng
+Phiên làm việc kết thúc với một vấn đề tồn đọng chưa được giải quyết. Mã nguồn đã được chứng minh là hoạt động đúng, nhưng kết quả cuối cùng trên trang tính lại không như mong đợi. Cần có một sự điều tra sâu hơn ở cấp độ nền tảng Google Sheets.

@@ -67,13 +67,16 @@
     </div>
     
     <div class="d-flex justify-content-between">
-      <button class="btn btn-primary" style="width: 48%;" id="submitButton" onclick="submitForm()">Ghi Lại Giao Dịch</button>
-      <button class="btn btn-secondary" style="width: 48%;" id="processTableButton" onclick="processManualTable()">Xử lý Bảng</button>
+      <button class="btn btn-primary" style="flex-grow: 1; margin-right: 5px;" id="submitButton" onclick="submitForm()">Ghi Lại</button>
+      <button class="btn btn-secondary" style="flex-grow: 1; margin-left: 5px; margin-right: 5px;" id="processTableButton" onclick="processManualTable()">Xử lý Bảng</button>
+      <button type="button" class="btn btn-info" style="flex-grow: 1; margin-left: 5px;" onclick="fillWithTestData()">TEST</button>
     </div>
     <div id="status" class="alert mt-3"></div>
   </div>
 
   <script>
+    let allData = {}; // Biến toàn cục để lưu dữ liệu dropdown
+
     // Chạy khi form được tải
     document.addEventListener("DOMContentLoaded", function() {
       resetForm();
@@ -107,12 +110,13 @@
         submitBtn.textContent = 'Ghi Lại Giao Dịch';
     }
 
-    // Điền dữ liệu vào các dropdown
+    // Điền dữ liệu vào các dropdown và lưu vào biến toàn cục
     function populateDropdowns(data) {
-      populateSelect('tenSanPham', data.products);
-      populateSelect('phanXuong', data.factories);
-      populateSelect('kho', data.warehouses);
-      populateSelect('khoDi', data.warehouses);
+      allData = data; // Lưu dữ liệu để hàm TEST có thể sử dụng
+      populateSelect('tenSanPham', allData.products);
+      populateSelect('phanXuong', allData.factories);
+      populateSelect('kho', allData.warehouses);
+      populateSelect('khoDi', allData.warehouses);
     }
 
     // Hàm xử lý lỗi khi không tải được dropdown
@@ -234,6 +238,44 @@
           // Gọi hàm với signature mới để xử lý ANFO
           .suggestLotNumber(tenSanPham, phanXuong, ngaySanXuat);
       }
+    }
+
+    // ===================================================================
+    // CHỨC NĂNG TEST
+    // ===================================================================
+    function fillWithTestData() {
+      if (!allData.products || allData.products.length === 0) {
+        showStatus('Dữ liệu dropdown chưa sẵn sàng để test. Vui lòng chờ giây lát.', false);
+        return;
+      }
+
+      // Helper để lấy phần tử ngẫu nhiên
+      const getRandomElement = (arr) => arr[Math.floor(Math.random() * arr.length)];
+      
+      // Helper để set giá trị và kích hoạt sự kiện onchange
+      const setSelectValueAndTriggerChange = (id, value) => {
+        const select = document.getElementById(id);
+        if (select) {
+          select.value = value;
+          const event = new Event('change', { bubbles: true });
+          select.dispatchEvent(event);
+        }
+      };
+
+      // Lấy dữ liệu ngẫu nhiên
+      const randomProduct = getRandomElement(allData.products);
+      const randomFactory = getRandomElement(allData.factories);
+      const randomWarehouse = getRandomElement(allData.warehouses);
+      const randomQuantity = Math.floor(Math.random() * 500) + 1;
+
+      // Điền vào form
+      setSelectValueAndTriggerChange('tenSanPham', randomProduct.value);
+      document.getElementById('soLuong').value = randomQuantity;
+      setSelectValueAndTriggerChange('phanXuong', randomFactory);
+      setSelectValueAndTriggerChange('kho', randomWarehouse);
+      document.getElementById('ngaySanXuat').valueAsDate = new Date();
+      
+      showStatus('Đã điền dữ liệu test ngẫu nhiên!', true);
     }
 
     // Hàm gọi xử lý bảng nhập liệu thủ công

@@ -37,7 +37,7 @@ function addTransactionToLog(txObject) {
  * Lấy dữ liệu danh mục từ sheet 'DANH MUC' với ánh xạ cột chính xác.
  * @returns {object} - Một đối tượng chứa các mảng dữ liệu cho dropdowns và xử lý logic.
  */
-function getCategoryData() {
+function db_getCategoryData() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG_SHEET_NAME);
   if (!sheet) {
@@ -45,32 +45,33 @@ function getCategoryData() {
   }
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) {
-    return { productMap: {}, productDropdown: [], warehouses: [] };
+    return { productMap: {}, productDropdown: [], warehouses: [], factories: [] };
   }
 
-  // Đọc đến cột F để lấy tất cả dữ liệu cần thiết
-  const data = sheet.getRange(`A2:F${lastRow}`).getValues();
+  // Đọc đến cột E theo cấu trúc đã xác nhận
+  const data = sheet.getRange(`A2:E${lastRow}`).getValues();
 
   const productMap = {};
   const warehouses = new Set();
+  const factories = new Set();
 
   data.forEach(row => {
-    const fullName = row[0]; // Tên đầy đủ
-    const shortName = row[1]; // Tên viết tắt
-    const quyCach = row[2]; // Quy cách
-    const factory = row[3]; // Đơn vị sản xuất
-    const warehouse = row[4]; // Kho
-    const lotCode = row[5]; // Mã lô (nếu có)
+    // Ánh xạ cột chính xác theo cấu trúc DANH MUC đã được xác nhận
+    const fullName = row[0];  // Cột A: Sản phẩm
+    const shortName = row[1]; // Cột B: Tên viết tắt
+    const factory = row[2];   // Cột C: Phân xưởng
+    const warehouse = row[3]; // Cột D: Kho
+    const lotCode = row[4] ? row[4].toString() : ''; // Cột E: Mã lô/ Mã ngắn
 
     if (fullName) {
+      // productMap chỉ chứa thông tin tra cứu, không chứa quy cách
       productMap[fullName] = {
         shortName: shortName,
-        quyCach: quyCach,
-        factory: factory,
         lotCode: lotCode
       };
     }
-    if (warehouse) warehouses.add(warehouse);
+    if (factory) factories.add(factory); // Lấy từ Cột C
+    if (warehouse) warehouses.add(warehouse); // Lấy từ Cột D
   });
 
   const productDropdown = Object.keys(productMap).map(fullName => ({
@@ -81,7 +82,8 @@ function getCategoryData() {
   return {
     productMap,
     productDropdown,
-    warehouses: [...warehouses]
+    warehouses: [...warehouses],
+    factories: [...factories]
   };
 }
 
@@ -113,4 +115,34 @@ function getWarehouseNames() {
   });
 
   return [...warehouses];
+}
+
+/**
+ * Ghi dữ liệu báo cáo đã được định dạng vào sheet báo cáo.
+ * @param {Array<Array<any>>} reportData - Mảng 2D chứa dữ liệu báo cáo, bao gồm cả tiêu đề.
+ */
+function db_writeReportData(reportData) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let reportSheet = ss.getSheetByName(REPORT_SHEET_NAME);
+
+  if (reportSheet) {
+    reportSheet.clear();
+  } else {
+    reportSheet = ss.insertSheet(REPORT_SHEET_NAME);
+  }
+
+  if (reportData.length === 0) {
+    reportSheet.getRange(1, 1).setValue("Không có dữ liệu tồn kho để báo cáo.");
+    return;
+  }
+  
+  // Ghi dữ liệu
+  reportSheet.getRange(1, 1, reportData.length, reportData[0].length).setValues(reportData);
+
+  // Định dạng
+  reportSheet.getRange(1, 1, 1, reportData[0].length).setFontWeight('bold').setBackground('#f3f3f3');
+  reportSheet.setFrozenRows(1);
+  reportSheet.setFrozenColumns(2);
+  
+  ss.setActiveSheet(reportSheet);
 }
