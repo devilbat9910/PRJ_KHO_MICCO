@@ -16,10 +16,14 @@
     <div class="form-group">
       <label for="loaiGiaoDich">Loại Giao Dịch</label>
       <select class="form-control" id="loaiGiaoDich" onchange="handleTransactionTypeChange()">
-        <option>Nhập</option>
-        <option>Xuất</option>
-        <option>Điều chuyển</option>
+        <option value="Nhập">Nhập</option>
+        <option value="Xuất">Xuất</option>
+        <option value="Điều chuyển">Điều chuyển</option>
       </select>
+    </div>
+    <div class="form-group" id="index-group" style="display: none;">
+      <label for="index">INDEX (SKU) của Lô Hàng</label>
+      <input type="text" class="form-control" id="index" placeholder="Nhập INDEX và bấm ra ngoài để tự điền" onblur="handleIndexBlur()">
     </div>
     <div class="form-group">
       <label for="tenSanPham">Tên Sản Phẩm</label>
@@ -76,6 +80,7 @@
 
   <script>
     let allData = {}; // Biến toàn cục để lưu dữ liệu dropdown
+    let currentInventoryData = null; // Biến toàn cục để lưu dữ liệu tồn kho của INDEX đã nhập
 
     // Chạy khi form được tải
     document.addEventListener("DOMContentLoaded", function() {
@@ -102,7 +107,12 @@
         const khoDiSelect = document.getElementById('khoDi');
         if (khoDiSelect) khoDiSelect.selectedIndex = 0;
 
+        // Reset lại trạng thái của các trường bị disable
+        const fieldsToToggle = ['tenSanPham', 'quyCach', 'loSanXuat', 'ngaySanXuat', 'phanXuong', 'tinhTrangChatLuong'];
+        fieldsToToggle.forEach(id => document.getElementById(id).disabled = false);
+        
         handleTransactionTypeChange();
+        currentInventoryData = null; // Xóa dữ liệu tồn kho cũ
 
         document.getElementById('status').style.display = 'none';
         const submitBtn = document.getElementById('submitButton');
@@ -150,6 +160,7 @@
       const formObject = {
         // ngayGiaoDich sẽ được tạo ở backend
         loaiGiaoDich: document.getElementById('loaiGiaoDich').value,
+        index: document.getElementById('index').value,
         tenSanPham: document.getElementById('tenSanPham').value,
         quyCach: document.getElementById('quyCach').value,
         soLuong: document.getElementById('soLuong').value,
@@ -165,16 +176,38 @@
       // --- VALIDATION PHÍA CLIENT ---
       if (!formObject.tenSanPham || !formObject.kho) {
         showStatus('Vui lòng điền đầy đủ Tên Sản Phẩm và Kho.', false);
-        submitBtn.disabled = false; submitBtn.textContent = 'Ghi Lại Giao Dịch'; return;
+        submitBtn.disabled = false; submitBtn.textContent = 'Ghi Lại'; return;
       }
       if (formObject.loaiGiaoDich === 'Điều chuyển' && !formObject.khoDi) {
         showStatus('Vui lòng chọn Kho Đi cho giao dịch điều chuyển.', false);
-        submitBtn.disabled = false; submitBtn.textContent = 'Ghi Lại Giao Dịch'; return;
+        submitBtn.disabled = false; submitBtn.textContent = 'Ghi Lại'; return;
       }
       const soLuong = Number(formObject.soLuong);
       if (isNaN(soLuong) || soLuong <= 0) {
         showStatus('Số lượng phải là một số lớn hơn 0.', false);
-        submitBtn.disabled = false; submitBtn.textContent = 'Ghi Lại Giao Dịch'; return;
+        submitBtn.disabled = false; submitBtn.textContent = 'Ghi Lại'; return;
+      }
+      if (formObject.loSanXuat && formObject.loSanXuat.includes('Đang tạo gợi ý...')) {
+        showStatus("Lỗi: Mã Lô chưa được tạo xong. Vui lòng chờ và thử lại.", false);
+        submitBtn.disabled = false; submitBtn.textContent = 'Ghi Lại'; return;
+      }
+      
+      // --- KIỂM TRA SỐ LƯỢNG TỒN KHO KHI XUẤT/ĐIỀU CHUYỂN ---
+      if (currentInventoryData && (formObject.loaiGiaoDich === 'Xuất' || formObject.loaiGiaoDich === 'Điều chuyển')) {
+        const khoToCheck = (formObject.loaiGiaoDich === 'Điều chuyển') ? formObject.khoDi.replace('Kho ', '').trim() : formObject.kho.replace('Kho ', '').trim();
+        const availableQuantity = currentInventoryData.inventory[khoToCheck] || 0;
+        
+        if (soLuong > availableQuantity) {
+          const continueAnyway = confirm(`Số lượng xuất (${soLuong}) lớn hơn số lượng tồn kho tại ${khoToCheck} (${availableQuantity}).\n\nBạn có muốn tiếp tục không?`);
+          if (!continueAnyway) {
+            showStatus('Hành động đã bị hủy.', false);
+            submitBtn.disabled = false; submitBtn.textContent = 'Ghi Lại'; return;
+          }
+        }
+      }
+      if (!formObject.quyCach || !/^[Dd Bb]/.test(formObject.quyCach)) {
+        showStatus("Lỗi: Quy Cách phải bắt đầu bằng ký tự 'D', 'd', 'B', hoặc 'b'.", false);
+        submitBtn.disabled = false; submitBtn.textContent = 'Ghi Lại'; return;
       }
 
       google.script.run.withSuccessHandler(function(response) {
@@ -206,6 +239,18 @@
       const txType = document.getElementById('loaiGiaoDich').value;
       const khoDiGroup = document.getElementById('kho-di-group');
       const khoLabel = document.getElementById('kho-label');
+      const indexGroup = document.getElementById('index-group');
+      
+      // Fields to disable when exporting/transferring by INDEX
+      const fieldsToToggle = ['tenSanPham', 'quyCach', 'loSanXuat', 'ngaySanXuat', 'phanXuong', 'tinhTrangChatLuong'];
+
+      if (txType === 'Xuất' || txType === 'Điều chuyển') {
+        indexGroup.style.display = 'block';
+        fieldsToToggle.forEach(id => document.getElementById(id).disabled = true);
+      } else { // Nhập
+        indexGroup.style.display = 'none';
+        fieldsToToggle.forEach(id => document.getElementById(id).disabled = false);
+      }
 
       if (txType === 'Điều chuyển') {
         khoDiGroup.style.display = 'block';
@@ -214,6 +259,50 @@
         khoDiGroup.style.display = 'none';
         khoLabel.textContent = 'Kho';
       }
+    }
+
+    // ===================================================================
+    // LOGIC XỬ LÝ INDEX
+    // ===================================================================
+
+    function handleIndexBlur() {
+      const indexValue = document.getElementById('index').value;
+      if (!indexValue) return;
+
+      showStatus('Đang tìm thông tin INDEX...', true);
+      google.script.run
+        .withSuccessHandler(populateFormWithIndexData)
+        .withFailureHandler(handleIndexError)
+        .service_getDataByIndex(indexValue);
+    }
+
+    function populateFormWithIndexData(data) {
+      if (!data) {
+        handleIndexError({ message: 'Không tìm thấy thông tin cho INDEX này.' });
+        return;
+      }
+      currentInventoryData = data; // Lưu lại để kiểm tra số lượng tồn
+
+      document.getElementById('tenSanPham').value = data.tenSanPham;
+      document.getElementById('quyCach').value = data.quyCach;
+      document.getElementById('ngaySanXuat').value = data.ngaySanXuat;
+      document.getElementById('phanXuong').value = data.phanXuong;
+      document.getElementById('tinhTrangChatLuong').value = data.tinhTrangChatLuong;
+      document.getElementById('loSanXuat').value = data.loSanXuat;
+
+      // Vô hiệu hóa các trường đã được tự động điền
+      const fieldsToDisable = ['tenSanPham', 'quyCach', 'ngaySanXuat', 'phanXuong', 'tinhTrangChatLuong', 'loSanXuat'];
+      fieldsToDisable.forEach(id => document.getElementById(id).disabled = true);
+      
+      showStatus('Đã tự động điền thông tin từ INDEX.', true);
+    }
+
+    function handleIndexError(err) {
+      currentInventoryData = null;
+      showStatus('Lỗi: ' + err.message, false);
+      // Kích hoạt lại các trường để người dùng có thể nhập tay nếu muốn (hoặc sửa INDEX)
+      const fieldsToEnable = ['tenSanPham', 'quyCach', 'ngaySanXuat', 'phanXuong', 'tinhTrangChatLuong', 'loSanXuat'];
+      fieldsToEnable.forEach(id => document.getElementById(id).disabled = false);
     }
 
     function suggestLoSanXuat() {

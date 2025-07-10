@@ -29,9 +29,10 @@ function onOpen() {
   const menu = ui.createMenu('📦 Quản Lý Kho');
   
   menu.addItem('Bảng điều khiển', 'showSidebar');
+  menu.addItem('Tra Cứu Tồn Kho', 'showTraCuuDialog');
   menu.addSeparator();
   
-  const reportMenu = ui.createMenu('📊 Báo Cáo & Chốt Sổ');
+  const reportMenu = ui.createMenu('Báo Cáo & Chốt Sổ');
   reportMenu.addItem('Tạo Báo Cáo Tồn Kho Tháng', 'generateMonthlyReport');
   reportMenu.addItem('Chốt Sổ Cuối Tháng', 'createMonthlySnapshot');
   menu.addSubMenu(reportMenu);
@@ -76,18 +77,26 @@ function setupInitialStructure() {
   }
 
   // 3. Ghi tiêu đề và định dạng
-  inventorySheet.getRange(1, 1, 1, fullHeaders[0].length)
-    .setValues(fullHeaders)
-    .setFontWeight('bold')
-    .setBackground('#f3f3f3');
-  inventorySheet.setFrozenColumns(identifierColumnCount);
-  inventorySheet.setFrozenRows(1);
+  const headerRange = inventorySheet.getRange(1, 1, 1, fullHeaders[0].length);
+  headerRange.setValues(fullHeaders).setFontWeight('bold').setBackground('#f3f3f3');
 
-  // 4. Chèn công thức ARRAYFORMULA cho cột "Tổng_ĐT"
-  const arrayFormulaCell = inventorySheet.getRange(2, totalColumnPosition);
-  // Công thức tính tổng từ cột H (ĐT3) đến cột N (ĐT9)
-  const formula = '=ARRAYFORMULA(IF(A2:A="", "", H2:H+I2:I+J2:J+K2:K+L2:L+M2:M+N2:N))';
-  arrayFormulaCell.setFormula(formula);
+  // 3a. Thêm hàng tổng cộng và đặt công thức
+  const totalRowRange = inventorySheet.getRange('H2:O2');
+  const warehouseFormulas = [
+    '=IFERROR(SUM(H3:H))', // H2
+    '=IFERROR(SUM(I3:I))', // I2
+    '=IFERROR(SUM(J3:J))', // J2
+    '=IFERROR(SUM(K3:K))', // K2
+    '=IFERROR(SUM(L3:L))', // L2
+    '=IFERROR(SUM(M3:M))', // M2
+    '=IFERROR(SUM(N3:N))', // N2
+    '=IFERROR(SUM(H2:N2))'  // O2
+  ];
+  totalRowRange.setFormulas([warehouseFormulas]);
+  inventorySheet.getRange('G2').setValue('TỔNG CỘNG').setFontWeight('bold').setHorizontalAlignment('right');
+  
+  inventorySheet.setFrozenColumns(identifierColumnCount);
+  inventorySheet.setFrozenRows(2); // Cố định cả tiêu đề và hàng tổng
 
   // 5. Xóa các sheet tồn kho cũ không còn sử dụng
   const oldViewSheet = ss.getSheetByName(VIEW_INVENTORY_SHEET_NAME);

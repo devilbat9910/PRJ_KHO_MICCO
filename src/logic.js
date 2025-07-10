@@ -219,3 +219,34 @@ function generateMonthlyReport() {
     ui.alert(`Đã xảy ra lỗi khi tạo báo cáo: ${e.message}`);
   }
 }
+
+
+
+
+//================================================================
+// SECTION: TRA CỨU
+//================================================================
+
+/**
+ * Hiển thị dialog tra cứu tồn kho.
+ */
+function showTraCuuDialog() {
+  const html = HtmlService.createHtmlOutputFromFile('TraCuu')
+    .setWidth(800)
+    .setHeight(600);
+  SpreadsheetApp.getUi().showModalDialog(html, '📊 Tra Cứu Tồn Kho');
+}
+
+/**
+ * Hàm cầu nối để thực hiện tra cứu từ UI.
+ * @param {object} searchCriteria - Đối tượng chứa các tiêu chí tìm kiếm.
+ * @returns {object} - Kết quả tìm kiếm.
+ */
+function logic_performSearch(searchCriteria) {
+  try {
+    return service_performSearch(searchCriteria);
+  } catch (e) {
+    Logger.log(`Lỗi trong logic_performSearch: ${e.stack}`);
+    return { success: false, message: e.message };
+  }
+}
