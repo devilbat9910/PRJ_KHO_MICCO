@@ -34,6 +34,7 @@
   ```
 - **Use `SpreadsheetApp.getUi()`** for user-facing alerts and dialogs.
 - **Use `Logger.log()`** for debugging; avoid using `console.log()` which doesn't work in all Apps Script contexts.
+- **Use Semicolons in Formulas:** All spreadsheet formulas set via script (e.g., `setFormula()`) must use semicolons (`;`) as separators, not commas (`,`), to comply with the sheet's locale settings. Example: `=IF(A1>1; "Lớn hơn 1"; "Nhỏ hơn 1")`.
 
 ### 🧠 AI Behavior Rules
 - **Never assume missing context. Ask questions if uncertain.**

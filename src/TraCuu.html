@@ -15,9 +15,16 @@
 <body>
   <h4>Tra Cứu Tồn Kho</h4>
   
+   <div class="form-row">
+    <div class="form-group col-md-12">
+      <label for="searchIndex">INDEX (Ưu tiên cao nhất)</label>
+      <input type="text" class="form-control" id="searchIndex" placeholder="Nhập INDEX để tìm chính xác, các bộ lọc khác sẽ bị bỏ qua">
+    </div>
+  </div>
+
   <div class="form-row">
     <div class="form-group col-md-6">
-      <label for="searchTenSanPham">Tên Sản Phẩm</label>
+      <label for="searchTenSanPham">Tên Sản Phẩm (hoặc một phần INDEX)</label>
       <input type="text" class="form-control" id="searchTenSanPham">
     </div>
     <div class="form-group col-md-6">
@@ -79,7 +86,9 @@
       statusDiv.style.display = 'none';
       resultsTable.style.display = 'none';
 
+      const searchIndexInput = document.getElementById('searchIndex');
       const searchCriteria = {
+        index: searchIndexInput.value.toUpperCase(),
         tenSanPham: document.getElementById('searchTenSanPham').value,
         loSanXuat: document.getElementById('searchLoSanXuat').value,
         ngaySXStart: document.getElementById('searchNgaySXStart').value,
@@ -87,6 +96,9 @@
         quyCach: document.getElementById('searchQuyCach').value,
         qcStatus: document.getElementById('searchQCStatus').value
       };
+      
+      // Tự động chuyển input thành chữ hoa
+      searchIndexInput.value = searchCriteria.index;
 
       google.script.run
         .withSuccessHandler(displayResults)

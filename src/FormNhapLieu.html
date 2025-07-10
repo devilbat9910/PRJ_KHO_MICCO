@@ -94,30 +94,57 @@
 
     // Reset form về trạng thái ban đầu
     function resetForm() {
-        document.getElementById('loaiGiaoDich').selectedIndex = 0;
-        document.getElementById('tenSanPham').selectedIndex = 0;
-        document.getElementById('soLuong').value = '';
-        document.getElementById('loSanXuat').value = '';
-        document.getElementById('ngaySanXuat').valueAsDate = new Date();
-        document.getElementById('tinhTrangChatLuong').selectedIndex = 0;
-        document.getElementById('phanXuong').selectedIndex = 0;
-        document.getElementById('kho').selectedIndex = 0;
-        document.getElementById('ghiChu').value = '';
+        // Thêm kiểm tra null để tránh lỗi crash script
+        const get = (id) => document.getElementById(id);
+
+        const loaiGiaoDich = get('loaiGiaoDich');
+        if (loaiGiaoDich) loaiGiaoDich.selectedIndex = 0;
+
+        const tenSanPham = get('tenSanPham');
+        if (tenSanPham) tenSanPham.selectedIndex = 0;
+
+        const soLuong = get('soLuong');
+        if (soLuong) soLuong.value = '';
+
+        const loSanXuat = get('loSanXuat');
+        if (loSanXuat) loSanXuat.value = '';
+
+        const ngaySanXuat = get('ngaySanXuat');
+        if (ngaySanXuat) ngaySanXuat.valueAsDate = new Date();
         
-        const khoDiSelect = document.getElementById('khoDi');
+        const tinhTrangChatLuong = get('tinhTrangChatLuong');
+        if (tinhTrangChatLuong) tinhTrangChatLuong.selectedIndex = 0;
+
+        const phanXuong = get('phanXuong');
+        if (phanXuong) phanXuong.selectedIndex = 0;
+
+        const kho = get('kho');
+        if (kho) kho.selectedIndex = 0;
+
+        const ghiChu = get('ghiChu');
+        if (ghiChu) ghiChu.value = '';
+        
+        const khoDiSelect = get('khoDi');
         if (khoDiSelect) khoDiSelect.selectedIndex = 0;
 
         // Reset lại trạng thái của các trường bị disable
         const fieldsToToggle = ['tenSanPham', 'quyCach', 'loSanXuat', 'ngaySanXuat', 'phanXuong', 'tinhTrangChatLuong'];
-        fieldsToToggle.forEach(id => document.getElementById(id).disabled = false);
+        fieldsToToggle.forEach(id => {
+          const el = get(id);
+          if (el) el.disabled = false;
+        });
         
         handleTransactionTypeChange();
         currentInventoryData = null; // Xóa dữ liệu tồn kho cũ
 
-        document.getElementById('status').style.display = 'none';
-        const submitBtn = document.getElementById('submitButton');
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Ghi Lại Giao Dịch';
+        const statusDiv = get('status');
+        if(statusDiv) statusDiv.style.display = 'none';
+        
+        const submitBtn = get('submitButton');
+        if(submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Ghi Lại Giao Dịch';
+        }
     }
 
     // Điền dữ liệu vào các dropdown và lưu vào biến toàn cục
@@ -273,7 +300,7 @@
       google.script.run
         .withSuccessHandler(populateFormWithIndexData)
         .withFailureHandler(handleIndexError)
-        .service_getDataByIndex(indexValue);
+        .getDataByIndex(indexValue);
     }
 
     function populateFormWithIndexData(data) {

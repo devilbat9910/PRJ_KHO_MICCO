@@ -59,7 +59,6 @@ Dự án đã được cấu trúc lại, các lỗi khi `push` đã được gi
 1.  **Mục tiêu:**
     *   Hiển thị tên viết tắt của sản phẩm trong dropdown để tiện lựa chọn.
     *   Thêm chức năng nhập liệu hàng loạt từ một bảng riêng trên sheet chính.
-
 2.  **Hành động & Triển khai:**
     *   **Tên viết tắt sản phẩm:**
         *   **Backend (`logic.js`):** Cập nhật hàm `getDropdownData()` để lấy cả tên đầy đủ (cột A) và tên viết tắt (cột B) từ sheet "DANH MUC". Dữ liệu sản phẩm giờ được gửi về client dưới dạng object `{value: 'Tên Đầy Đủ', text: 'Tên Viết Tắt'}`.
@@ -79,7 +78,6 @@ Dự án đã được cấu trúc lại, các lỗi khi `push` đã được gi
 ### Giai Đoạn 7: Tái Cấu Trúc Toàn Diện Hệ Thống
 
 1.  **Mục tiêu:** Dựa trên phản hồi, tái cấu trúc lại toàn bộ mô hình dữ liệu và logic nghiệp vụ để tăng cường độ chi tiết, hiệu năng và khả năng mở rộng.
-
 2.  **Hành động & Triển khai:**
     *   **Tái thiết kế Form Nhập Liệu (`FormNhapLieu.html`):**
         *   Bổ sung các trường mới: "Lô sản xuất", "Ngày sản xuất", "Tình trạng chất lượng".
@@ -100,7 +98,6 @@ Dự án đã được cấu trúc lại, các lỗi khi `push` đã được gi
 ### Giai Đoạn 8: Hoàn Thiện Mô Hình Dữ Liệu với SKU
 
 1.  **Mục tiêu:** Giới thiệu một mã `INDEX (SKU)` bất biến để định danh duy nhất cho mỗi lô hàng, tăng cường tính toàn vẹn dữ liệu và điều chỉnh lại các bảng hiển thị cho nhất quán.
-
 2.  **Hành động & Triển khai:**
     *   **Tạo `INDEX (SKU)`:**
         *   **Backend (`logic.js`):** Tạo hàm `generateSku()` để tự động sinh mã SKU theo định dạng `MãSảnPhẩm-LoạiSP-NgàyGiaoDịch-ĐơnVịSảnXuất`.
@@ -132,7 +129,6 @@ Hệ thống đã được ổn định. Lỗi hồi quy đã được xác đ�
 ### Giai Đoạn 10: Gỡ Lỗi Logic và Đồng Bộ Hóa Dữ Liệu
 
 1.  **Mục tiêu:** Rà soát lại hệ thống sau khi người dùng báo cáo lỗi "Vui lòng điền đầy đủ Ngày, Tên Sản Phẩm và Kho" mặc dù đã điền đủ.
-
 2.  **Hành động & Triển khai:**
     *   **Chẩn đoán ban đầu (Sai):** Nghi ngờ lỗi kiểm tra (validation) ở phía client.
     *   **Phân tích sâu hơn:**
@@ -161,7 +157,6 @@ Hệ thống đã được ổn định. Các lỗi logic, dữ liệu và quy t
 ### Giai Đoạn 11: Tinh Chỉnh Dựa Trên Phản Hồi Người Dùng
 
 1.  **Mục tiêu:** Thực hiện các thay đổi dựa trên phản hồi cuối cùng của người dùng để đơn giản hóa form và sửa lỗi logic.
-
 2.  **Hành động & Triển khai:**
     *   **Yêu cầu 1: Loại bỏ "Loại Sản Phẩm"**:
         *   **Phân tích:** Nhận thấy trường "Loại Sản Phẩm" là không cần thiết và làm phức tạp quy trình.
@@ -243,7 +238,6 @@ Hệ thống đã được hoàn thiện theo tất cả các yêu cầu. Các l
 ### Giai Đoạn 15: Tái Cấu Trúc Mô Hình Tồn Kho sang "Ma Trận"
 
 1.  **Mục tiêu:** Thay đổi hoàn toàn mô hình quản lý tồn kho từ nhiều sheet/view phức tạp sang một mô hình "Ma trận Tồn kho" (`TON_KHO_tonghop`) duy nhất, mạnh mẽ và dễ truy vấn.
-
 2.  **Hành động & Triển khai:**
     *   **Thiết kế kiến trúc:**
         *   Thống nhất kiến trúc mới: một sheet `TON_KHO_tonghop` duy nhất.
@@ -272,7 +266,6 @@ Hệ thống đã được tái cấu trúc thành công sang mô hình "Ma tr�
 ### Giai Đoạn 16: Triển Khai Chức Năng Báo Cáo và Chốt Sổ
 
 1.  **Mục tiêu:** Hoàn thành các chức năng còn lại trong `TASK.md` liên quan đến báo cáo và chốt sổ cuối tháng.
-
 2.  **Hành động & Triển khai:**
     *   **Phân tích bối cảnh:** Đã đọc và phân tích toàn bộ các tệp tài liệu (`WORKFLOW.md`, `PLANNING.md`, `TASK.md`, `dialog.md`, `config.js`, `CLAUDE.md`) để nắm vững trạng thái và kiến trúc dự án.
     *   **Triển khai `createMonthlySnapshot()`:**
@@ -295,7 +288,6 @@ Toàn bộ các công việc trong `TASK.md` đã được hoàn thành. Hệ th
 ### Giai Đoạn 17: Gỡ Lỗi Hồi Quy Sau Khi Triển Khai
 
 1.  **Mục tiêu:** Sửa lỗi "Số cột trong dải ô phải tối thiểu là 1" xảy ra khi người dùng nhập liệu qua sidebar.
-
 2.  **Hành động & Triển khai:**
     *   **Chẩn đoán:**
         *   Lỗi được xác định xảy ra trong hàm `processFormData` -> `updateDashboardRecentTransactions` của file `logic.js`.
@@ -314,7 +306,6 @@ Lỗi hồi quy đã được xác định và khắc phục. Hệ thống đã 
 ### Giai Đoạn 18: Chẩn Đoán Lại và Sửa Lỗi Gốc
 
 1.  **Mục tiêu:** Tìm ra nguyên nhân gốc rễ của lỗi "Số cột trong dải ô phải tối thiểu là 1" sau khi các bản vá trước không thành công.
-
 2.  **Hành động & Triển khai:**
     *   **Thêm Log Chi Tiết:** Chèn các lệnh `Logger.log` vào các vị trí trọng yếu của `logic.js` để theo dõi luồng thực thi và `stack trace` của lỗi.
     *   **Phân Tích Log Mới:** Log chi tiết do người dùng cung cấp đã chỉ ra lỗi không nằm ở `updateDashboardRecentTransactions` như nghi ngờ ban đầu, mà nằm sâu trong `service.gs`, tại hàm `updateMasterInventory`.
@@ -331,7 +322,6 @@ Lỗi đã được chẩn đoán chính xác và khắc phục triệt để b�
 ### Giai Đoạn 19: Tái Cấu Trúc Hệ Thống Theo Template Tồn Kho Mới
 
 1.  **Mục tiêu:** Thay đổi toàn diện cấu trúc của sheet `TON_KHO_tonghop` và logic xử lý của toàn hệ thống để tuân theo một template cố định mới do người dùng cung cấp.
-
 2.  **Hành động & Triển khai:**
     *   **Phân tích yêu cầu:** Ghi nhận yêu cầu về cấu trúc cột mới, bao gồm các cột cố định và một cột tính tổng bằng `ARRAYFORMULA`.
     *   **Tái cấu trúc `config.js`**:
@@ -355,7 +345,6 @@ Hệ thống đã được tái cấu trúc thành công để tuân thủ templ
 ### Giai Đoạn 20: Sửa Lỗi Tên Kho Không Nhất Quán
 
 1.  **Mục tiêu:** Sửa lỗi "Tên kho không hợp lệ" xảy ra do sự khác biệt giữa dữ liệu nhập ("Kho ĐT3") và tên cột trong template ("ĐT3").
-
 2.  **Hành động & Triển khai:**
     *   **Chẩn đoán:** Lỗi được xác định nằm trong hàm `_updateInventoryValue` của `service.gs`. Hàm `indexOf` không tìm thấy tên kho có chứa tiền tố "Kho " trong mảng tiêu đề.
     *   **Khắc phục:**
@@ -373,7 +362,6 @@ Lỗi không nhất quán về tên kho đã được khắc phục. Hệ thốn
 Phiên làm việc này tập trung vào việc chẩn đoán và sửa một chuỗi các lỗi liên quan đến nhau trong luồng xử lý giao dịch, từ việc tạo `INDEX` cho đến cập nhật tồn kho.
 
 1.  **Mục tiêu:** Sửa các lỗi được người dùng báo cáo, bao gồm `INDEX` sai và sheet tồn kho không được cập nhật.
-
 2.  **Hành động & Triển khai (Theo từng vòng lặp gỡ lỗi):**
 
     *   **Vòng 1: Sửa lỗi tạo `INDEX` (Lỗi logic mã lô)**
@@ -406,7 +394,6 @@ Toàn bộ các lỗi trong luồng xử lý giao dịch đã được xác đ�
 ### Giai Đoạn 22: Chẩn Đoán Sâu và Ghi Nhận Vấn Đề Tồn Đọng
 
 1.  **Mục tiêu:** Tìm ra nguyên nhân gốc rễ của việc sheet `TON_KHO_tonghop` không được cập nhật.
-
 2.  **Hành động & Triển khai:**
     *   **Chẩn đoán bằng Log:** Đã thêm các câu lệnh `Logger.log` chi tiết vào luồng cập nhật tồn kho để theo dõi giá trị các biến.
     *   **Chẩn đoán bằng `flush()`:** Đã thêm `SpreadsheetApp.flush()` và logic đọc lại giá trị ngay sau khi ghi để xác minh hành động `setValue()`.
@@ -427,3 +414,35 @@ Toàn bộ các lỗi trong luồng xử lý giao dịch đã được xác đ�
 
 ### Tình Trạng Cuối Cùng
 Phiên làm việc kết thúc với một vấn đề tồn đọng chưa được giải quyết. Mã nguồn đã được chứng minh là hoạt động đúng, nhưng kết quả cuối cùng trên trang tính lại không như mong đợi. Cần có một sự điều tra sâu hơn ở cấp độ nền tảng Google Sheets.
+---
+# Nhật Ký Phiên Làm Việc - 10/07/2025 (Tiếp theo): Tái Cấu Trúc Toàn Diện
+
+Phiên làm việc này tập trung vào việc tái cấu trúc sâu rộng hệ thống dựa trên các phản hồi mới, nhằm tăng cường tính linh hoạt, khả năng bảo trì và sửa các lỗi logic quan trọng.
+
+### Giai Đoạn 25: Sửa Lỗi và Nâng Cấp Dialog Tra Cứu
+
+1.  **Mục tiêu:** Khắc phục lỗi `service_performSearch is not defined` và nâng cấp chức năng tra cứu.
+2.  **Hành động & Triển khai:**
+    *   **Chẩn đoán:** Lỗi xảy ra do `TraCuu.html` gọi hàm `logic_performSearch`, hàm này lại gọi đến `service_performSearch` không tồn tại trong `service.js`.
+    *   **Khắc phục (Sửa lỗi):** Đã tạo hàm `service_performSearch` trong `service.js` để xử lý các yêu cầu tìm kiếm.
+    *   **Khắc phục (Nâng cấp):**
+        *   Cập nhật `TraCuu.html` để thêm trường tìm kiếm theo `INDEX`.
+        *   Viết lại `service_performSearch` với logic thông minh: ưu tiên tìm theo `INDEX`, tự động nhận diện `INDEX` trong các trường khác, và báo lỗi nếu có xung đột dữ liệu.
+        *   Thêm logic để tự động lọc bỏ các lô hàng có tổng tồn kho bằng 0 khỏi kết quả tra cứu.
+
+### Giai Đoạn 26: Tái Cấu Trúc Sheet Tồn Kho và Bảo Toàn Dữ Liệu
+
+1.  **Mục tiêu:** Tái cấu trúc sheet `TON_KHO_tonghop` để quản lý kho một cách tự động, đồng thời sửa các lỗi nghiêm trọng liên quan đến mất dữ liệu và công thức tính toán.
+2.  **Hành động & Triển khai:**
+    *   **Phân tích sự cố:**
+        *   **Lỗi 1 (Mất dữ liệu):** Hàm `setupInitialStructure` cũ đã xóa toàn bộ dữ liệu hiện có mỗi khi chạy.
+        *   **Lỗi 2 (Công thức sai):** Công thức `SUM` chỉ được áp dụng cho một hàng duy nhất, không áp dụng cho toàn bộ cột.
+        *   **Lỗi 3 (Cú pháp công thức):** Các công thức sử dụng dấu phẩy (`,`) thay vì dấu chấm phẩy (`;`), không tương thích với cài đặt Google Sheets của người dùng.
+    *   **Khắc phục (Toàn diện):**
+        1.  **Bảo toàn dữ liệu:** Viết lại hoàn toàn hàm `setupInitialStructure` trong `config.js`. Hàm này giờ đây sẽ đọc và lưu trữ dữ liệu cũ, tạo một sheet tạm với cấu trúc mới, sau đó ánh xạ và ghi lại dữ liệu đã lưu vào sheet mới một cách an toàn.
+        2.  **Sửa công thức:** Thay thế công thức cũ bằng một công thức mảng duy nhất (`ARRAYFORMULA` kết hợp `MMULT` và dấu `;`) để tự động tính tổng cho toàn bộ cột "Tổng SL".
+        3.  **Tự động hóa cột kho:** Logic mới trong `setupInitialStructure` giờ sẽ tự động đọc danh sách kho từ `DANH MUC` để tạo các cột tương ứng, giúp việc thêm/bớt kho trở nên hoàn toàn tự động.
+    *   **Cập nhật quy tắc:** Đã thêm quy tắc về việc sử dụng dấu chấm phẩy (`;`) trong công thức vào file `CLAUDE.md` để tránh lặp lại lỗi trong tương lai.
+
+### Tình Trạng Cuối Cùng
+Phiên làm việc kết thúc. Hệ thống đã được tái cấu trúc thành công với các cải tiến lớn về tính linh hoạt, an toàn dữ liệu và logic nghiệp vụ. Toàn bộ mã nguồn đã được đồng bộ hóa trên tất cả các môi trường.

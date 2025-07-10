@@ -51,61 +51,95 @@ function onOpen() {
 }
 
 /**
- * REFACTORED: Hàm thiết lập cấu trúc theo template cố định mới cho "TON_KHO_tonghop".
- * Xóa các sheet tồn kho cũ và tạo lại sheet ma trận với các cột và công thức được định nghĩa trước.
+ * REFACTORED (v3): Hàm thiết lập cấu trúc an toàn, không phá hủy dữ liệu.
+ * Tự động đọc danh sách kho, bảo toàn dữ liệu cũ và áp dụng công thức mảng.
  */
 function setupInitialStructure() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const ui = SpreadsheetApp.getUi();
-
-  // 1. Định nghĩa cấu trúc CỐ ĐỊNH cho sheet Tồn Kho Tổng Hợp
   const MASTER_INVENTORY_SHEET = 'TON_KHO_tonghop';
-  const fullHeaders = [[
-    'INDEX', 'Tên_SP', 'Quy_Cách', 'Lô_SX', 'Ngày_SX', 'QC_Status', 'ĐV_SX',
-    'ĐT3', 'ĐT4', 'ĐT5', 'ĐT6', 'ĐT7', 'ĐT8', 'ĐT9',
-    'Tổng_ĐT', 'CP4'
-  ]];
-  const identifierColumnCount = 7; // Số cột định danh
-  const totalColumnPosition = 15; // Vị trí cột O (Tổng_ĐT)
 
-  // 2. Tạo hoặc làm mới sheet Tồn Kho Tổng Hợp
-  let inventorySheet = ss.getSheetByName(MASTER_INVENTORY_SHEET);
-  if (inventorySheet) {
-    inventorySheet.clear();
-  } else {
-    inventorySheet = ss.insertSheet(MASTER_INVENTORY_SHEET);
+  // --- Bước 1: Lấy cấu trúc mới và dữ liệu cũ ---
+  const warehouseList = db_getWarehouseList();
+  if (warehouseList.length === 0) {
+    ui.alert("Lỗi: Không tìm thấy kho nào trong sheet 'DANH MUC'.");
+    return;
   }
 
-  // 3. Ghi tiêu đề và định dạng
-  const headerRange = inventorySheet.getRange(1, 1, 1, fullHeaders[0].length);
-  headerRange.setValues(fullHeaders).setFontWeight('bold').setBackground('#f3f3f3');
-
-  // 3a. Thêm hàng tổng cộng và đặt công thức
-  const totalRowRange = inventorySheet.getRange('H2:O2');
-  const warehouseFormulas = [
-    '=IFERROR(SUM(H3:H))', // H2
-    '=IFERROR(SUM(I3:I))', // I2
-    '=IFERROR(SUM(J3:J))', // J2
-    '=IFERROR(SUM(K3:K))', // K2
-    '=IFERROR(SUM(L3:L))', // L2
-    '=IFERROR(SUM(M3:M))', // M2
-    '=IFERROR(SUM(N3:N))', // N2
-    '=IFERROR(SUM(H2:N2))'  // O2
-  ];
-  totalRowRange.setFormulas([warehouseFormulas]);
-  inventorySheet.getRange('G2').setValue('TỔNG CỘNG').setFontWeight('bold').setHorizontalAlignment('right');
+  const identifierHeaders = ['INDEX', 'Tên_SP', 'Quy_Cách', 'Lô_SX', 'Ngày_SX', 'QC_Status', 'ĐV_SX'];
+  const totalColumnHeader = 'Tổng SL';
+  const newHeaders = [...identifierHeaders, totalColumnHeader, ...warehouseList];
   
-  inventorySheet.setFrozenColumns(identifierColumnCount);
-  inventorySheet.setFrozenRows(2); // Cố định cả tiêu đề và hàng tổng
+  let oldData = [];
+  let oldHeaders = [];
+  const sourceSheet = ss.getSheetByName(MASTER_INVENTORY_SHEET);
+  if (sourceSheet && sourceSheet.getLastRow() > 2) {
+    const dataRange = sourceSheet.getRange(3, 1, sourceSheet.getLastRow() - 2, sourceSheet.getLastColumn());
+    oldData = dataRange.getValues();
+    oldHeaders = sourceSheet.getRange(1, 1, 1, sourceSheet.getLastColumn()).getValues()[0];
+  }
 
-  // 5. Xóa các sheet tồn kho cũ không còn sử dụng
+  // --- Bước 2: Tạo sheet tạm và ghi dữ liệu đã ánh xạ ---
+  const tempSheetName = `temp_migration_${Date.now()}`;
+  const tempSheet = ss.insertSheet(tempSheetName);
+  
+  // Ghi tiêu đề mới vào sheet tạm
+  tempSheet.getRange(1, 1, 1, newHeaders.length).setValues([newHeaders]);
+
+  // Ánh xạ dữ liệu cũ sang cấu trúc mới
+  if (oldData.length > 0) {
+    const mappedData = oldData.map(row => {
+      const oldRowObject = oldHeaders.reduce((obj, header, i) => {
+        obj[header] = row[i];
+        return obj;
+      }, {});
+      
+      return newHeaders.map(newHeader => {
+        // Trả về giá trị từ dữ liệu cũ nếu tìm thấy, nếu không thì trả về rỗng
+        return oldRowObject[newHeader] !== undefined ? oldRowObject[newHeader] : "";
+      });
+    });
+    tempSheet.getRange(3, 1, mappedData.length, mappedData[0].length).setValues(mappedData);
+  }
+
+  // --- Bước 3: Xóa sheet cũ và đổi tên sheet tạm ---
+  if (sourceSheet) {
+    ss.deleteSheet(sourceSheet);
+  }
+  tempSheet.setName(MASTER_INVENTORY_SHEET);
+  const newInventorySheet = tempSheet; // Giờ sheet tạm là sheet chính
+
+  // --- Bước 4: Áp dụng công thức và định dạng ---
+  const totalColumnPosition = identifierHeaders.length + 1; // Cột H
+  const firstWarehouseCol = String.fromCharCode('A'.charCodeAt(0) + totalColumnPosition);
+  const lastWarehouseCol = String.fromCharCode('A'.charCodeAt(0) + totalColumnPosition + warehouseList.length - 1);
+  
+  // SỬA LỖI CÔNG THỨC: Dùng ARRAYFORMULA và dấu chấm phẩy
+  const arrayFormula = `=ARRAYFORMULA(IF(A3:A="";;MMULT(IF(ISNUMBER(${firstWarehouseCol}3:${lastWarehouseCol});${firstWarehouseCol}3:${lastWarehouseCol};0);SEQUENCE(COLUMNS(${firstWarehouseCol}3:${lastWarehouseCol});1;1;0))))`;
+  newInventorySheet.getRange(3, totalColumnPosition).setFormula(arrayFormula);
+  
+  // Đặt hàng tổng cộng
+  const totalRowFormulas = [];
+  totalRowFormulas.push(`=IFERROR(SUM(H3:H))`);
+  for (let i = 0; i < warehouseList.length; i++) {
+    const colLetter = String.fromCharCode('A'.charCodeAt(0) + totalColumnPosition + i);
+    totalRowFormulas.push(`=IFERROR(SUM(${colLetter}3:${colLetter}))`);
+  }
+  newInventorySheet.getRange(2, totalColumnPosition, 1, totalRowFormulas.length).setFormulas([totalRowFormulas]);
+  newInventorySheet.getRange(2, identifierHeaders.length).setValue('TỔNG CỘNG').setFontWeight('bold').setHorizontalAlignment('right');
+
+  // Định dạng cuối cùng
+  newInventorySheet.getRange(1, 1, 1, newHeaders.length).setFontWeight('bold').setBackground('#f3f3f3');
+  newInventorySheet.setFrozenColumns(identifierHeaders.length);
+  newInventorySheet.setFrozenRows(2);
+
+  // Xóa các sheet tồn kho cũ không còn sử dụng
   const oldViewSheet = ss.getSheetByName(VIEW_INVENTORY_SHEET_NAME);
   if (oldViewSheet) ss.deleteSheet(oldViewSheet);
-
   const oldInventorySheet = ss.getSheetByName(INVENTORY_SHEET_NAME);
   if (oldInventorySheet) ss.deleteSheet(oldInventorySheet);
 
-  ui.alert(`Thiết lập thành công! Sheet "${MASTER_INVENTORY_SHEET}" đã được tạo/cập nhật theo template mới.`);
+  ui.alert(`Tái cấu trúc thành công! Dữ liệu đã được bảo toàn và di chuyển sang cấu trúc mới. Sheet "${MASTER_INVENTORY_SHEET}" đã được cập nhật động.`);
 }
 
 /**

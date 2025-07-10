@@ -54,7 +54,6 @@ function db_getCategoryData() {
   const productMap = {};
   const warehouses = new Set();
   const factories = new Set();
-  const shortNameToFullNameMap = {}; // Map tra cứu ngược
 
   data.forEach(row => {
     // Ánh xạ cột chính xác theo cấu trúc DANH MUC đã được xác nhận
@@ -64,12 +63,12 @@ function db_getCategoryData() {
     const warehouse = row[3]; // Cột D: Kho
     const lotCode = row[4] ? row[4].toString() : ''; // Cột E: Mã lô/ Mã ngắn
 
-    if (fullName && shortName) {
+    if (fullName) {
+      // productMap chỉ chứa thông tin tra cứu, không chứa quy cách
       productMap[fullName] = {
         shortName: shortName,
         lotCode: lotCode
       };
-      shortNameToFullNameMap[shortName] = fullName; // Thêm vào map tra cứu ngược
     }
     if (factory) factories.add(factory); // Lấy từ Cột C
     if (warehouse) warehouses.add(warehouse); // Lấy từ Cột D
@@ -82,7 +81,6 @@ function db_getCategoryData() {
 
   return {
     productMap,
-    shortNameToFullNameMap, // Trả về map mới
     productDropdown,
     warehouses: [...warehouses],
     factories: [...factories]
@@ -118,6 +116,33 @@ function getWarehouseNames() {
 
   return [...warehouses];
 }
+
+/**
+ * Lấy danh sách tên kho duy nhất từ sheet DANH MUC.
+ * @returns {string[]} Một mảng các tên kho đã được sắp xếp.
+ */
+function db_getWarehouseList() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(CONFIG_SHEET_NAME);
+  if (!sheet) {
+    throw new Error(`Không tìm thấy sheet danh mục: "${CONFIG_SHEET_NAME}"`);
+  }
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) {
+    return [];
+  }
+  // Đọc toàn bộ cột D (Kho)
+  const warehouseData = sheet.getRange(`D2:D${lastRow}`).getValues();
+  const warehouseSet = new Set();
+  warehouseData.forEach(row => {
+    if (row[0]) {
+      warehouseSet.add(row[0].toString().trim());
+    }
+  });
+  // Sắp xếp để đảm bảo thứ tự cột nhất quán
+  return [...warehouseSet].sort();
+}
+
 
 /**
  * Ghi dữ liệu báo cáo đã được định dạng vào sheet báo cáo.

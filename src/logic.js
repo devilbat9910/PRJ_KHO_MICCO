@@ -26,6 +26,21 @@ function getDropdownData() {
 // DEPRECATED: Hàm suggestLotNumber đã bị xóa khỏi logic.js để tránh lỗi đệ quy.
 // Giao diện sẽ gọi trực tiếp hàm trong service.gs.
 
+/**
+ * Hàm cầu nối để lấy dữ liệu chi tiết của một lô hàng dựa trên INDEX.
+ * @param {string} indexValue - Mã INDEX (SKU) cần tra cứu.
+ * @returns {object | null} - Dữ liệu chi tiết của lô hàng.
+ */
+function getDataByIndex(indexValue) {
+  try {
+    return service_getDataByIndex(indexValue);
+  } catch (e) {
+    Logger.log(`Lỗi trong getDataByIndex(logic.js): ${e.stack}`);
+    // Ném lỗi lại để withFailureHandler của client có thể bắt được
+    throw new Error(`Không thể lấy dữ liệu cho INDEX "${indexValue}". Lỗi: ${e.message}`);
+  }
+}
+
 //================================================================
 // SECTION: XỬ LÝ GIAO DỊCH VÀ CẬP NHẬT KHO
 //================================================================

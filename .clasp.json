@@ -3,10 +3,11 @@
   "rootDir": "src",
   "filePushOrder": [
     "config.js",
-    "db.gs",
-    "service.gs",
+    "db.js",
+    "service.js",
     "logic.js",
     "doc.js",
-    "FormNhapLieu.html"
+    "FormNhapLieu.html",
+    "TraCuu.html"
   ]
 }
