@@ -173,3 +173,43 @@ function db_writeReportData(reportData) {
   
   ss.setActiveSheet(reportSheet);
 }
+
+
+/**
+ * Reads all data from the master inventory sheet.
+ * @returns {{headers: string[], data: any[][]}}
+ */
+function db_getInventoryData() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(MASTER_INVENTORY_SHEET);
+  if (!sheet || sheet.getLastRow() < 3) {
+    return { headers: [], data: [] };
+  }
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const data = sheet.getRange(3, 1, sheet.getLastRow() - 2, sheet.getLastColumn()).getValues();
+  return { headers, data };
+}
+
+/**
+ * Gets unique values for filters from DANH MUC.
+ * @returns {{warehouses: string[], areas: string[]}}
+ */
+function db_getFilterOptionsFromDanhMuc() {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(CONFIG_SHEET_NAME);
+    if (!sheet) {
+        return { warehouses: [], areas: [] };
+    }
+    const lastRow = sheet.getLastRow();
+    if (lastRow < 2) {
+        return { warehouses: [], areas: [] };
+    }
+    
+    const warehouseData = sheet.getRange(`D2:D${lastRow}`).getValues();
+    const areaData = sheet.getRange(`C2:C${lastRow}`).getValues(); // Assuming Khu Vuc is in Column C
+
+    const warehouses = [...new Set(warehouseData.map(r => r[0]).filter(Boolean))];
+    const areas = [...new Set(areaData.map(r => r[0]).filter(Boolean))];
+
+    return { warehouses, areas };
+}

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <style>
+    body { padding: 15px; }
+    .filter-section {
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      background-color: #f9f9f9;
+    }
+    .table-responsive {
+        max-height: 70vh;
+    }
+    #loadingSpinner {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+  <div class="container-fluid">
+    <h3>Bảng Điều Khiển Tồn Kho</h3>
+    
+    <div class="filter-section">
+      <div class="form-row">
+        <div class="form-group col-md-4">
+          <label for="searchBox">Tra cứu (Tên, Lô, Quy cách, INDEX)</label>
+          <input type="text" class="form-control" id="searchBox" placeholder="Nhập từ khóa...">
+        </div>
+        <div class="form-group col-md-3">
+          <label for="khoFilter">Lọc theo Kho</label>
+          <select id="khoFilter" class="form-control">
+            <option selected value="">Tất cả Kho</option>
+            <!-- Options will be populated by script -->
+          </select>
+        </div>
+        <div class="form-group col-md-3">
+          <label for="khuVucFilter">Lọc theo Khu Vực</label>
+          <select id="khuVucFilter" class="form-control">
+            <option selected value="">Tất cả Khu Vực</option>
+            <!-- Options will be populated by script -->
+          </select>
+        </div>
+        <div class="form-group col-md-2 d-flex align-items-end">
+            <button id="filterBtn" class="btn btn-primary btn-block">Lọc Dữ Liệu</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="loadingSpinner" style="display: none;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="sr-only">Loading...</span>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover table-sm">
+        <thead class="thead-light" id="dashboardTableHead">
+          <!-- Header will be populated by script -->
+        </thead>
+        <tbody id="dashboardTableBody">
+          <!-- Data will be populated by script -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      // Initial data load
+      fetchDashboardData();
+      
+      // Load filter options
+      google.script.run.withSuccessHandler(populateFilters).getFilterOptions();
+
+      // Add event listener for the filter button
+      document.getElementById("filterBtn").addEventListener("click", fetchDashboardData);
+      
+      // Add event listener for Enter key on search box
+      document.getElementById("searchBox").addEventListener("keypress", function(event) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          fetchDashboardData();
+        }
+      });
+    });
+
+    function showSpinner(show) {
+        document.getElementById('loadingSpinner').style.display = show ? 'block' : 'none';
+    }
+
+    function fetchDashboardData() {
+      showSpinner(true);
+      const filters = {
+        searchTerm: document.getElementById('searchBox').value,
+        kho: document.getElementById('khoFilter').value,
+        khuVuc: document.getElementById('khuVucFilter').value
+      };
+      google.script.run.withSuccessHandler(renderTable).withFailureHandler(showError).getDashboardData(filters);
+    }
+
+    function populateFilters(filters) {
+        const khoSelect = document.getElementById('khoFilter');
+        filters.warehouses.forEach(kho => {
+            const option = document.createElement('option');
+            option.value = kho;
+            option.textContent = kho;
+            khoSelect.appendChild(option);
+        });
+
+        const khuVucSelect = document.getElementById('khuVucFilter');
+        filters.areas.forEach(area => {
+            const option = document.createElement('option');
+            option.value = area;
+            option.textContent = area;
+            khuVucSelect.appendChild(option);
+        });
+    }
+
+    function renderTable(dataObject) {
+      showSpinner(false);
+      const thead = document.getElementById('dashboardTableHead');
+      const tbody = document.getElementById('dashboardTableBody');
+      
+      thead.innerHTML = '';
+      tbody.innerHTML = '';
+
+      if (dataObject.error) {
+        showError({message: dataObject.error});
+        return;
+      }
+      
+      if (dataObject.data.length === 0) {
+        const row = tbody.insertRow();
+        const cell = row.insertCell();
+        cell.colSpan = dataObject.headers.length;
+        cell.textContent = 'Không tìm thấy dữ liệu phù hợp.';
+        cell.style.textAlign = 'center';
+        return;
+      }
+
+      // Render Header
+      const headerRow = thead.insertRow();
+      dataObject.headers.forEach(headerText => {
+        const th = document.createElement('th');
+        th.textContent = headerText;
+        headerRow.appendChild(th);
+      });
+
+      // Render Body
+      dataObject.data.forEach(rowData => {
+        const row = tbody.insertRow();
+        rowData.forEach(cellData => {
+          const cell = row.insertCell();
+          cell.textContent = (cellData instanceof Date) ? cellData.toLocaleDateString('vi-VN') : cellData;
+        });
+      });
+    }
+
+    function showError(error) {
+        showSpinner(false);
+        alert('Đã xảy ra lỗi: ' + error.message);
+    }
+  </script>
+</body>
+</html>

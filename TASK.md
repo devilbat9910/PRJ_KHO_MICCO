@@ -1,28 +1,45 @@
-# Project Tasks
+# Project Tasks: Dashboard Implementation
 
-This file tracks the status of development tasks.
+This file tracks the development tasks for the new Inventory Dashboard.
 
-## To Do
-- [x] Bug: Sửa lỗi công thức `SUM` trong `config.js` để áp dụng cho toàn bộ cột, không chỉ một hàng.
-- [x] Bug: Viết lại `setupInitialStructure` để bảo toàn dữ liệu hiện có khi tái cấu trúc sheet, tránh mất mát dữ liệu.
-- [x] Bug: Sửa lại cú pháp công thức trong code, thay thế dấu phẩy (`,`) bằng dấu chấm phẩy (`;`) để tương thích với cài đặt Google Sheets.
-- [x] Cập nhật `CLAUDE.md` để ghi nhớ quy tắc sử dụng dấu chấm phẩy trong công thức.
-- [x] Tái cấu trúc `TON_KHO_tonghop` để tự động hóa việc quản lý cột kho và thêm cột "Tổng SL".
-- [x] Implement logic to automatically delete rows with zero total inventory from `TON_KHO_tonghop` after each transaction.
-- [x] Bug: Dialog tra cứu đang báo lỗi `service_performSearch is not defined`.
-- [x] Nâng cấp Dialog Tra cứu: Thêm trường tìm kiếm theo INDEX và xử lý logic tìm kiếm thông minh.
-- [x] Lọc Tồn Kho: Ẩn các sản phẩm có tổng tồn kho bằng 0 khỏi kết quả tra cứu.
-- [x] Bug: When using an INDEX for an export transaction, the 'Quy cách' field is not populated, causing a validation error.
-- [x] Fix recurring bug: Dropdown lists in the sidebar are stuck on "Loading...".
-- [x] Implement `createMonthlySnapshot()` function in `logic.js` to work with the new data structure.
-- [x] Implement `generateMonthlyReport()` function in `logic.js` to work with the new data structure.
+## Phase 1: Setup Google Sheets Environment
 
-## In Progress
--
+- [ ] Create a new sheet named `Database`.
+- [ ] Define the required columns in the `Database` sheet: `ItemID`, `Mã Hàng`, `Tên Hàng`, `Số Lượng`, `Đơn Vị Tính`, `Kho`, `Khu V vực`, `Ngày Nhập`, `Ghi Chú`, `IsVisible`.
+- [ ] Create a new sheet named `Dashboard`.
+- [ ] In the `Database` sheet, add the formula `=SUBTOTAL(103, A2)` to cell `J2` (IsVisible column) and ensure it applies to all data rows.
 
-## Done
-- [x] Setup initial project structure.
-- [x] Refactor project documentation and rules (`CLAUDE.md`, `PLANNING.md`).
-- [x] Refactor `displayRecentTransactions()` to read from `LOG_GIAO_DICH_tbl` via service layer.
-- [x] Refactor `processManualEntry()` to use the service layer.
-- [x] Fix dropdown loading bug by refactoring `getCategoryData` and service calls.
+## Phase 2: Implement Dashboard & Data Display
+
+- [ ] Add Slicers for `Kho` and `Khu Vực` based on the `Database` sheet data.
+- [ ] Move the Slicers from the `Database` sheet to the `Dashboard` sheet for user access.
+- [ ] Design a search box on the `Dashboard` sheet (e.g., at cell `C2`).
+- [ ] Implement the dynamic `QUERY` formula on the `Dashboard` sheet to display data, linking it to the search box and the `IsVisible` column for Slicer compatibility.
+
+## Phase 3: Develop Backend Logic (Apps Script)
+
+- [ ] **`config.js`**: Update the `onOpen()` function to add a menu item `Mở Bảng Nhập Liệu` which calls `showInputDialog`.
+- [ ] **`logic.js`**: Create a new function `showInputDialog()` to serve the `InputForm.html` file as a modal dialog.
+- [ ] **`logic.js`**: Create a bridge function `saveData(formData)` that calls the corresponding service layer function.
+- [ ] **`service.js`**: Create the main business logic function `service_saveData(formData)` which will:
+    -   Generate a unique `ItemID`.
+    -   Prepare the data row for storage.
+    -   Call the database layer to save the data.
+    -   Return a success or error object.
+- [ ] **`db.js`**: Create the data access function `db_saveNewItem(itemData)` to append a new row to the `Database` sheet.
+
+## Phase 4: Develop Frontend (HTML Input Form)
+
+- [ ] Create a new HTML file named `InputForm.html`.
+- [ ] Add the HTML structure for all required form fields (`Mã Hàng`, `Tên Hàng`, etc.).
+- [ ] Style the form using Bootstrap CSS.
+- [ ] Add client-side JavaScript to handle form submission.
+- [ ] Implement the `google.script.run` call to pass form data to the backend `saveData` function.
+- [ ] Implement the `withSuccessHandler` and `withFailureHandler` to display a response message to the user within the form.
+
+## Phase 5: Integration and Final Touches
+
+- [ ] On the `Dashboard` sheet, create a clickable "INPUT" button using a drawing.
+- [ ] Assign the `showInputDialog` script to the "INPUT" button.
+- [ ] Conduct a full test of the input-to-display flow.
+- [ ] Update `PLANNING.md` to reflect the new `Dashboard` and `Database` architecture.

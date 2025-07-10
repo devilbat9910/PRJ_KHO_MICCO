@@ -502,3 +502,45 @@ function formatAndReturn(data, headers) {
 
   return { success: true, headers: headers, data: formattedData };
 }
+
+
+// ===================================================================================
+// DASHBOARD LOGIC
+// ===================================================================================
+
+function service_getDashboardData(filters) {
+  const { headers, data } = db_getInventoryData();
+  if (data.length === 0) {
+    return { headers: headers, data: [] };
+  }
+
+  const searchTerm = filters.searchTerm ? filters.searchTerm.toLowerCase() : '';
+  const khoFilter = filters.kho;
+  // Khu vực filter is not directly applicable on TON_KHO_tonghop, but we keep it for future use
+  // const khuVucFilter = filters.khuVuc;
+
+  const filteredData = data.filter(row => {
+    // Combine multiple columns for a general search
+    const rowString = row.join(' ').toLowerCase();
+    const searchMatch = searchTerm ? rowString.includes(searchTerm) : true;
+    
+    // Filter by warehouse value
+    let khoMatch = true;
+    if (khoFilter) {
+      const khoIndex = headers.indexOf(khoFilter);
+      if (khoIndex !== -1) {
+        khoMatch = parseFloat(row[khoIndex]) > 0;
+      } else {
+        khoMatch = false; // If kho doesn't exist in header, it's a mismatch
+      }
+    }
+
+    return searchMatch && khoMatch;
+  });
+
+  return { headers: headers, data: filteredData };
+}
+
+function service_getFilterOptions() {
+  return db_getFilterOptionsFromDanhMuc();
+}

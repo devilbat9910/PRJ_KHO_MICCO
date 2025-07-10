@@ -41,3 +41,4 @@
 - **Always confirm sheet names and cell ranges** by checking `config.js` or asking before writing code that interacts with them.
 - **Do not modify the `LOG_GIAO_DICH_tbl` sheet directly.** All data should be appended via the `db.addTransactionToLog()` function.
 - **Never delete or overwrite existing code** unless explicitly instructed to or as part of a refactoring task from `TASK.md`.
+- **Build Self-Healing Functions:** User-facing functions (like menu items) should be robust. They must validate prerequisites and automatically fix structural issues (like a missing column) before proceeding. This avoids forcing the user to run multiple separate steps in the correct order.

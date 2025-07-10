@@ -28,8 +28,8 @@ function onOpen() {
   const ui = SpreadsheetApp.getUi();
   const menu = ui.createMenu('📦 Quản Lý Kho');
   
-  menu.addItem('Bảng điều khiển', 'showSidebar');
-  menu.addItem('Tra Cứu Tồn Kho', 'showTraCuuDialog');
+  menu.addItem('Mở Form Nhập Liệu', 'showSidebar');
+  menu.addItem('Mở Dialog Tra Cứu', 'showTraCuuDialog');
   menu.addSeparator();
   
   const reportMenu = ui.createMenu('Báo Cáo & Chốt Sổ');
@@ -41,8 +41,7 @@ function onOpen() {
   
   const helpMenu = ui.createMenu('⚙️ Trợ giúp & Cài đặt');
   helpMenu.addItem('Tạo/Mở Tài liệu Dự án', 'createOrOpenDocumentation');
-  helpMenu.addItem('Tạo Sheet Template cho Trang Chính', 'createDashboardTemplateSheet');
-  helpMenu.addItem('Cập nhật Trang Chính từ Template', 'updateDashboardFromTemplate');
+  helpMenu.addItem('Tạo/Cập nhật Dashboard', 'createIntegratedDashboard');
   helpMenu.addSeparator();
   helpMenu.addItem('Thiết lập cấu trúc (Chạy 1 lần)', 'setupInitialStructure');
   menu.addSubMenu(helpMenu);
@@ -54,92 +53,51 @@ function onOpen() {
  * REFACTORED (v3): Hàm thiết lập cấu trúc an toàn, không phá hủy dữ liệu.
  * Tự động đọc danh sách kho, bảo toàn dữ liệu cũ và áp dụng công thức mảng.
  */
-function setupInitialStructure() {
+/**
+ * Internal function to ensure the inventory sheet has the correct structure.
+ * This is the core logic without UI alerts.
+ * @returns {boolean} - True if structure is valid or fixed, false on critical error.
+ */
+function _ensureCorrectStructure() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const ui = SpreadsheetApp.getUi();
   const MASTER_INVENTORY_SHEET = 'TON_KHO_tonghop';
+  const techColumnHeader = '_IsVisible';
 
-  // --- Bước 1: Lấy cấu trúc mới và dữ liệu cũ ---
-  const warehouseList = db_getWarehouseList();
-  if (warehouseList.length === 0) {
-    ui.alert("Lỗi: Không tìm thấy kho nào trong sheet 'DANH MUC'.");
-    return;
+  const sheet = ss.getSheetByName(MASTER_INVENTORY_SHEET);
+  if (!sheet) {
+    Logger.log(`Lỗi: Không tìm thấy sheet "${MASTER_INVENTORY_SHEET}".`);
+    return false;
   }
 
-  const identifierHeaders = ['INDEX', 'Tên_SP', 'Quy_Cách', 'Lô_SX', 'Ngày_SX', 'QC_Status', 'ĐV_SX'];
-  const totalColumnHeader = 'Tổng SL';
-  const newHeaders = [...identifierHeaders, totalColumnHeader, ...warehouseList];
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
   
-  let oldData = [];
-  let oldHeaders = [];
-  const sourceSheet = ss.getSheetByName(MASTER_INVENTORY_SHEET);
-  if (sourceSheet && sourceSheet.getLastRow() > 2) {
-    const dataRange = sourceSheet.getRange(3, 1, sourceSheet.getLastRow() - 2, sourceSheet.getLastColumn());
-    oldData = dataRange.getValues();
-    oldHeaders = sourceSheet.getRange(1, 1, 1, sourceSheet.getLastColumn()).getValues()[0];
+  if (headers.includes(techColumnHeader)) {
+    return true; // Structure is already correct.
   }
 
-  // --- Bước 2: Tạo sheet tạm và ghi dữ liệu đã ánh xạ ---
-  const tempSheetName = `temp_migration_${Date.now()}`;
-  const tempSheet = ss.insertSheet(tempSheetName);
+  // If the column doesn't exist, add it.
+  const newColumnPosition = headers.length + 1;
+  sheet.getRange(1, newColumnPosition).setValue(techColumnHeader);
   
-  // Ghi tiêu đề mới vào sheet tạm
-  tempSheet.getRange(1, 1, 1, newHeaders.length).setValues([newHeaders]);
-
-  // Ánh xạ dữ liệu cũ sang cấu trúc mới
-  if (oldData.length > 0) {
-    const mappedData = oldData.map(row => {
-      const oldRowObject = oldHeaders.reduce((obj, header, i) => {
-        obj[header] = row[i];
-        return obj;
-      }, {});
-      
-      return newHeaders.map(newHeader => {
-        // Trả về giá trị từ dữ liệu cũ nếu tìm thấy, nếu không thì trả về rỗng
-        return oldRowObject[newHeader] !== undefined ? oldRowObject[newHeader] : "";
-      });
-    });
-    tempSheet.getRange(3, 1, mappedData.length, mappedData[0].length).setValues(mappedData);
-  }
-
-  // --- Bước 3: Xóa sheet cũ và đổi tên sheet tạm ---
-  if (sourceSheet) {
-    ss.deleteSheet(sourceSheet);
-  }
-  tempSheet.setName(MASTER_INVENTORY_SHEET);
-  const newInventorySheet = tempSheet; // Giờ sheet tạm là sheet chính
-
-  // --- Bước 4: Áp dụng công thức và định dạng ---
-  const totalColumnPosition = identifierHeaders.length + 1; // Cột H
-  const firstWarehouseCol = String.fromCharCode('A'.charCodeAt(0) + totalColumnPosition);
-  const lastWarehouseCol = String.fromCharCode('A'.charCodeAt(0) + totalColumnPosition + warehouseList.length - 1);
+  const techFormula = `=ARRAYFORMULA(IF(A3:A="",,SUBTOTAL(103,A3:A)))`;
+  sheet.getRange(3, newColumnPosition).setFormula(techFormula);
+  sheet.hideColumns(newColumnPosition);
   
-  // SỬA LỖI CÔNG THỨC: Dùng ARRAYFORMULA và dấu chấm phẩy
-  const arrayFormula = `=ARRAYFORMULA(IF(A3:A="";;MMULT(IF(ISNUMBER(${firstWarehouseCol}3:${lastWarehouseCol});${firstWarehouseCol}3:${lastWarehouseCol};0);SEQUENCE(COLUMNS(${firstWarehouseCol}3:${lastWarehouseCol});1;1;0))))`;
-  newInventorySheet.getRange(3, totalColumnPosition).setFormula(arrayFormula);
-  
-  // Đặt hàng tổng cộng
-  const totalRowFormulas = [];
-  totalRowFormulas.push(`=IFERROR(SUM(H3:H))`);
-  for (let i = 0; i < warehouseList.length; i++) {
-    const colLetter = String.fromCharCode('A'.charCodeAt(0) + totalColumnPosition + i);
-    totalRowFormulas.push(`=IFERROR(SUM(${colLetter}3:${colLetter}))`);
+  Logger.log(`Cấu trúc đã được cập nhật. Cột kỹ thuật "${techColumnHeader}" đã được thêm vào.`);
+  return true;
+}
+
+
+/**
+ * User-facing function to set up the structure. Acts as a wrapper for the core logic.
+ */
+function setupInitialStructure() {
+  const ui = SpreadsheetApp.getUi();
+  if (_ensureCorrectStructure()) {
+    ui.alert('Cấu trúc đã được kiểm tra và cập nhật (nếu cần).');
+  } else {
+    ui.alert('Lỗi nghiêm trọng: Không tìm thấy sheet "TON_KHO_tonghop".');
   }
-  newInventorySheet.getRange(2, totalColumnPosition, 1, totalRowFormulas.length).setFormulas([totalRowFormulas]);
-  newInventorySheet.getRange(2, identifierHeaders.length).setValue('TỔNG CỘNG').setFontWeight('bold').setHorizontalAlignment('right');
-
-  // Định dạng cuối cùng
-  newInventorySheet.getRange(1, 1, 1, newHeaders.length).setFontWeight('bold').setBackground('#f3f3f3');
-  newInventorySheet.setFrozenColumns(identifierHeaders.length);
-  newInventorySheet.setFrozenRows(2);
-
-  // Xóa các sheet tồn kho cũ không còn sử dụng
-  const oldViewSheet = ss.getSheetByName(VIEW_INVENTORY_SHEET_NAME);
-  if (oldViewSheet) ss.deleteSheet(oldViewSheet);
-  const oldInventorySheet = ss.getSheetByName(INVENTORY_SHEET_NAME);
-  if (oldInventorySheet) ss.deleteSheet(oldInventorySheet);
-
-  ui.alert(`Tái cấu trúc thành công! Dữ liệu đã được bảo toàn và di chuyển sang cấu trúc mới. Sheet "${MASTER_INVENTORY_SHEET}" đã được cập nhật động.`);
 }
 
 /**
@@ -182,4 +140,65 @@ function updateDashboardFromTemplate() {
 
   ss.setActiveSheet(mainSheet);
   SpreadsheetApp.getUi().alert('Đã cập nhật thành công Trang Chính từ template!');
+}
+
+
+/**
+ * Tạo Dashboard tích hợp với Slicer.
+ */
+function createIntegratedDashboard() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ui = SpreadsheetApp.getUi();
+  const dashboardSheetName = 'Dashboard';
+  const sourceSheetName = 'TON_KHO_tonghop';
+
+  // --- Tự động kiểm tra và sửa lỗi cấu trúc ---
+  if (!_ensureCorrectStructure()) {
+      ui.alert('Lỗi nghiêm trọng: Không tìm thấy sheet "TON_KHO_tonghop". Không thể tạo dashboard.');
+      return;
+  }
+  SpreadsheetApp.flush(); // Đảm bảo các thay đổi cấu trúc được áp dụng
+  // --- Kết thúc kiểm tra ---
+
+  const sourceSheet = ss.getSheetByName(sourceSheetName);
+
+  // Tạo hoặc lấy sheet Dashboard
+  let dashboardSheet = ss.getSheetByName(dashboardSheetName);
+  if (!dashboardSheet) {
+    dashboardSheet = ss.insertSheet(dashboardSheetName, 0);
+  }
+  dashboardSheet.clear();
+  ss.setActiveSheet(dashboardSheet);
+
+  // --- Thiết lập QUERY ---
+  const headers = sourceSheet.getRange(1, 1, 1, sourceSheet.getLastColumn()).getValues()[0];
+  const isVisibleColIndex = headers.indexOf('_IsVisible') + 1;
+  // Check này giờ chỉ là một lớp bảo vệ kép, vì _ensureCorrectStructure đã chạy
+  if (isVisibleColIndex === 0) {
+      ui.alert('Lỗi không xác định: Không thể tìm thấy cột "_IsVisible" ngay cả sau khi đã cố gắng sửa lỗi.');
+      return;
+  }
+  const isVisibleColLetter = String.fromCharCode('A'.charCodeAt(0) + isVisibleColIndex - 1);
+  const queryFormula = `=QUERY('${sourceSheetName}'!A:Z, "SELECT * WHERE ${isVisibleColLetter}=1", 2)`;
+  
+  dashboardSheet.getRange('A5').setFormula(queryFormula);
+  dashboardSheet.getRange('A4').setValue('BẢNG DỮ LIỆU TỒN KHO').setFontWeight('bold');
+
+  // --- Thiết lập Slicer ---
+  // Xóa slicer cũ trên sheet (nếu có)
+  const slicers = dashboardSheet.getSlicers();
+  slicers.forEach(slicer => slicer.remove());
+
+  const dvSxColIndex = headers.indexOf('ĐV_SX') + 1;
+
+  if (dvSxColIndex > 0) {
+    // Lấy toàn bộ cột 'ĐV_SX' từ sheet nguồn để tạo Slicer
+    const slicerRange = sourceSheet.getRange(1, dvSxColIndex, sourceSheet.getLastRow());
+    const slicer = dashboardSheet.insertSlicer(slicerRange);
+    slicer.setPosition(2, 1, 0, 0); // Đặt slicer ở ô A2
+  } else {
+    ui.alert('Không tìm thấy cột "ĐV_SX" để tạo Slicer.');
+  }
+  
+  ui.alert('Đã tạo/cập nhật Dashboard thành công!');
 }
