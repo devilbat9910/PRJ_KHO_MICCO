@@ -446,3 +446,65 @@ Phiên làm việc này tập trung vào việc tái cấu trúc sâu rộng h�
 
 ### Tình Trạng Cuối Cùng
 Phiên làm việc kết thúc. Hệ thống đã được tái cấu trúc thành công với các cải tiến lớn về tính linh hoạt, an toàn dữ liệu và logic nghiệp vụ. Toàn bộ mã nguồn đã được đồng bộ hóa trên tất cả các môi trường.
+
+---
+# Nhật Ký Phiên Làm Việc - 11/07/2025: Hoàn Thiện Chức Năng Dashboard và Cập Nhật
+
+### Giai Đoạn 27: Gỡ Lỗi và Hoàn Thiện Dashboard
+
+1.  **Mục tiêu:** Sửa lỗi và hoàn thiện chức năng Dashboard dựa trên phản hồi của người dùng.
+2.  **Hành động & Triển khai:**
+    *   **Chẩn đoán lỗi `insertSlicer`:**
+        *   **Triệu chứng:** Lỗi `Exception: Tham số (SpreadsheetApp.Range) không khớp...` xảy ra liên tục.
+        *   **Chẩn đoán:** Sau khi thêm log chi tiết, đã xác nhận lỗi không nằm ở mã nguồn mà ở chính hàm `insertSlicer` không ổn định của Google.
+    *   **Khắc phục (Tái cấu trúc):**
+        *   Loại bỏ hoàn toàn việc sử dụng `insertSlicer`.
+        *   Thay thế bằng bộ lọc Dropdown đáng tin cậy hơn tại ô `B2` của sheet `Dashboard`.
+        *   Triển khai trigger `onEdit` để tự động lọc lại dữ liệu và ẩn/hiện các cột kho không liên quan khi người dùng thay đổi lựa chọn trong Dropdown.
+    *   **Sửa lỗi `setDataValidation`:**
+        *   **Triệu chứng:** Lỗi "Số cột trong dữ liệu không khớp..." xảy ra khi tạo Dashboard.
+        *   **Chẩn đoán:** Lỗi do cung cấp mảng định dạng `setFontWeights` có kích thước không chính xác.
+        *   **Khắc phục:** Sửa lại logic để tạo ra một mảng định dạng có kích thước động, khớp với số lượng cột của tiêu đề.
+
+### Giai Đoạn 28: Triển Khai Chức Năng Cập Nhật Giao Dịch
+
+1.  **Mục tiêu:** Xây dựng một quy trình an toàn và thông minh để người dùng có thể sửa các giao dịch đã tồn tại.
+2.  **Hành động & Triển khai:**
+    *   **Bảo vệ Sheet:** Tạo chức năng `protectDataSheets` để khóa các sheet dữ liệu quan trọng, ngăn chặn việc sửa đổi thủ công.
+    *   **Sửa lỗi Tên Kho:** Khắc phục lỗi hồi quy do logic "chuẩn hóa" tên kho trong `service.js`, đảm bảo hệ thống tìm đúng tên cột đầy đủ.
+    *   **Nâng cấp Giao diện:**
+        *   Thêm nút "Tra Cứu & Sửa" vào form nhập liệu.
+        *   Tăng kích thước dialog tra cứu để dễ dàng xem thông tin.
+    *   **Tái cấu trúc Luồng Cập nhật:**
+        *   Thiết kế lại toàn bộ quy trình để lấy dữ liệu **giao dịch gốc từ `LOG_GIAO_DICH_tbl`** thay vì từ `TON_KHO_tonghop`.
+        *   Dữ liệu gốc được lưu tạm trên client để so sánh và điền đầy đủ vào form, giải quyết lỗi yêu cầu nhập lại các trường không cần thiết.
+    *   **Xây dựng Logic Cập nhật Thông minh:**
+        *   Viết lại hàm `service_updateTransaction` để phân biệt giữa thay đổi thông tin phụ và thay đổi tồn kho.
+        *   Hệ thống giờ đây chỉ hoàn trả và tính toán lại tồn kho khi thực sự cần thiết, đảm bảo an toàn dữ liệu.
+        *   Tự động tạo một ghi chú chi tiết về các trường đã thay đổi và lưu vào cột "Ghi Chú" của log.
+
+### Tình Trạng Cuối Cùng
+Toàn bộ các chức năng cốt lõi của hệ thống đã được hoàn thiện và ổn định. Các lỗi đã được khắc phục triệt để. Hệ thống hiện có dashboard linh hoạt, chức năng nhập liệu, và một quy trình cập nhật giao dịch an toàn, thông minh và được ghi nhận đầy đủ.
+---
+# Nhật Ký Phiên Làm Việc - 11/07/2025 (Kiểm tra và Sửa lỗi)
+
+### Giai Đoạn 29: Kiểm Tra Toàn Diện Hệ Thống (Health Check)
+
+1.  **Mục tiêu:** Rà soát toàn bộ hệ thống để tìm kiếm nợ kỹ thuật và các lỗi tiềm ẩn.
+2.  **Hành động:**
+    *   Đã tạo file `HEALTH_CHECK.md` để lên danh sách các hạng mục cần kiểm tra.
+    *   Rà soát mã nguồn cho từng chức năng chính theo checklist.
+
+### Giai Đoạn 30: Khắc Phục Nợ Kỹ Thuật và Lỗi
+
+1.  **Mục tiêu:** Sửa các vấn đề được phát hiện trong quá trình kiểm tra.
+2.  **Hành động & Triển khai:**
+    *   **Phát hiện 1 (Lỗi chức năng):** Chức năng "Gợi ý Lô Sản Xuất" phía client chưa được kết nối với server. (Tạm thời bỏ qua theo yêu cầu).
+    *   **Phát hiện 2 (Nợ kỹ thuật):** Chức năng "Dialog Tra Cứu" chỉ hỗ trợ tìm kiếm theo `INDEX` dù logic backend đã được chuẩn bị cho nhiều tiêu chí hơn.
+        *   **Khắc phục:** Đã nâng cấp `TraCuu.html` để thêm các ô tìm kiếm "Tên Sản Phẩm", "Lô Sản Xuất" và cập nhật `service.js` để xử lý logic tìm kiếm kết hợp.
+    *   **Phát hiện 3 (Lỗi nghiêm trọng):** Các hàm `service_generateMonthlyReport` và `service_createMonthlySnapshot` đã bị mất khỏi file `service.js`.
+        *   **Khắc phục:** Đã viết lại và bổ sung các hàm này vào `service.js`, khôi phục lại chức năng báo cáo và chốt sổ.
+    *   **Đồng bộ hóa:** Toàn bộ các bản vá lỗi và nâng cấp đã được `clasp push` thành công lên máy chủ Google Apps Script.
+
+### Tình Trạng Cuối Cùng
+Quá trình kiểm tra sức khỏe hệ thống đã hoàn tất. Các lỗi nghiêm trọng và nợ kỹ thuật được phát hiện đã được khắc phục. Hệ thống hiện đã ổn định và đầy đủ chức năng hơn. Phiên làm việc kết thúc.

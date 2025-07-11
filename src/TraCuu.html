@@ -10,55 +10,28 @@
     #results-container { margin-top: 20px; }
     #status { margin-top: 15px; display: none; }
     th, td { text-align: left; padding: 8px; }
+    tbody tr:hover { background-color: #f5f5f5; }
   </style>
 </head>
-<body>
-  <h4>Tra Cứu Tồn Kho</h4>
+<body data-mode="<?= (typeof mode !== 'undefined' ? mode : 'search') ?>">
+  <h4>Tra Cứu Giao Dịch</h4>
   
    <div class="form-row">
-    <div class="form-group col-md-12">
-      <label for="searchIndex">INDEX (Ưu tiên cao nhất)</label>
-      <input type="text" class="form-control" id="searchIndex" placeholder="Nhập INDEX để tìm chính xác, các bộ lọc khác sẽ bị bỏ qua">
-    </div>
-  </div>
-
-  <div class="form-row">
     <div class="form-group col-md-6">
-      <label for="searchTenSanPham">Tên Sản Phẩm (hoặc một phần INDEX)</label>
-      <input type="text" class="form-control" id="searchTenSanPham">
+      <label for="searchIndex">INDEX (SKU)</label>
+      <input type="text" class="form-control" id="searchIndex" placeholder="Ưu tiên tìm theo INDEX">
     </div>
     <div class="form-group col-md-6">
       <label for="searchLoSanXuat">Lô Sản Xuất</label>
       <input type="text" class="form-control" id="searchLoSanXuat">
     </div>
-  </div>
-
-  <div class="form-row">
-    <div class="form-group col-md-6">
-      <label for="searchNgaySXStart">Từ Ngày Sản Xuất</label>
-      <input type="date" class="form-control" id="searchNgaySXStart">
-    </div>
-    <div class="form-group col-md-6">
-      <label for="searchNgaySXEnd">Đến Ngày Sản Xuất</label>
-      <input type="date" class="form-control" id="searchNgaySXEnd">
-    </div>
-  </div>
-
-  <div class="form-row">
-    <div class="form-group col-md-6">
-      <label for="searchQuyCach">Quy Cách</label>
-      <input type="text" class="form-control" id="searchQuyCach">
-    </div>
-    <div class="form-group col-md-6">
-      <label for="searchQCStatus">Tình Trạng Chất Lượng</label>
-      <select class="form-control" id="searchQCStatus">
-        <option value="">Tất cả</option>
-        <option>Đạt</option>
-        <option>Chờ kết quả</option>
-        <option>Mẫu lưu</option>
-      </select>
-    </div>
-  </div>
+   </div>
+   <div class="form-row">
+      <div class="form-group col-md-12">
+        <label for="searchTenSanPham">Tên Sản Phẩm</label>
+        <select class="form-control" id="searchTenSanPham"><option value="" selected>-- Tất cả --</option></select>
+      </div>
+   </div>
 
   <button class="btn btn-primary btn-block" id="searchButton" onclick="performSearch()">Tìm Kiếm</button>
   
@@ -66,39 +39,33 @@
 
   <div id="results-container">
     <table class="table table-sm table-striped table-bordered" style="display: none;" id="resultsTable">
-      <thead>
-        <!-- Header sẽ được tạo động bởi script -->
-      </thead>
-      <tbody>
-        <!-- Dữ liệu kết quả sẽ được chèn vào đây -->
-      </tbody>
+      <thead></thead>
+      <tbody></tbody>
     </table>
   </div>
 
   <script>
+    const isEditMode = document.body.dataset.mode === 'edit';
+
+    document.addEventListener("DOMContentLoaded", function() {
+      google.script.run
+        .withSuccessHandler(data => {
+          const productSelect = document.getElementById('searchTenSanPham');
+          data.products.forEach(p => productSelect.add(new Option(p.text, p.value)));
+        })
+        .getDropdownData();
+    });
+
     function performSearch() {
       const searchBtn = document.getElementById('searchButton');
-      const statusDiv = document.getElementById('status');
-      const resultsTable = document.getElementById('resultsTable');
-
       searchBtn.disabled = true;
       searchBtn.textContent = 'Đang tìm kiếm...';
-      statusDiv.style.display = 'none';
-      resultsTable.style.display = 'none';
 
-      const searchIndexInput = document.getElementById('searchIndex');
       const searchCriteria = {
-        index: searchIndexInput.value.toUpperCase(),
-        tenSanPham: document.getElementById('searchTenSanPham').value,
-        loSanXuat: document.getElementById('searchLoSanXuat').value,
-        ngaySXStart: document.getElementById('searchNgaySXStart').value,
-        ngaySXEnd: document.getElementById('searchNgaySXEnd').value,
-        quyCach: document.getElementById('searchQuyCach').value,
-        qcStatus: document.getElementById('searchQCStatus').value
+        index: document.getElementById('searchIndex').value.trim().toUpperCase(),
+        loSanXuat: document.getElementById('searchLoSanXuat').value.trim(),
+        tenSanPham: document.getElementById('searchTenSanPham').value
       };
-      
-      // Tự động chuyển input thành chữ hoa
-      searchIndexInput.value = searchCriteria.index;
 
       google.script.run
         .withSuccessHandler(displayResults)
@@ -108,56 +75,48 @@
 
     function displayResults(response) {
       const searchBtn = document.getElementById('searchButton');
-      const statusDiv = document.getElementById('status');
-      const resultsTable = document.getElementById('resultsTable');
-      const tableHead = resultsTable.querySelector('thead');
-      const tableBody = resultsTable.querySelector('tbody');
-
-      searchBtn.disabled = false;
-      searchBtn.textContent = 'Tìm Kiếm';
-      tableHead.innerHTML = '';
+      const tableBody = document.getElementById('resultsTable').querySelector('tbody');
       tableBody.innerHTML = '';
 
       if (response.success && response.data.length > 0) {
-        const data = response.data;
-        const headers = response.headers;
-
-        // Create table header
-        let headerRow = '<tr>';
-        headers.forEach(h => headerRow += `<th>${h}</th>`);
-        headerRow += '</tr>';
-        tableHead.innerHTML = headerRow;
-
-        // Create table body
-        data.forEach(rowData => {
-          let row = '<tr>';
-          rowData.forEach(cell => row += `<td>${cell}</td>`);
-          row += '</tr>';
-          tableBody.innerHTML += row;
+        // simplified display for log search
+        response.data.forEach(rowData => {
+          let rowHtml = `<tr style="cursor: pointer;" onclick="handleRowClick('${rowData[1]}')">`; // rowData[1] is the SKU
+          rowData.forEach(cell => rowHtml += `<td>${cell}</td>`);
+          rowHtml += '</tr>';
+          tableBody.innerHTML += rowHtml;
         });
-
-        resultsTable.style.display = 'table';
-        statusDiv.style.display = 'block';
-        statusDiv.className = 'alert alert-success';
-        statusDiv.textContent = `Tìm thấy ${data.length} kết quả.`;
-
+        document.getElementById('resultsTable').style.display = 'table';
+        showStatus(`Tìm thấy ${response.data.length} kết quả. Nhấp vào dòng để chọn.`, 'success');
       } else {
-        statusDiv.style.display = 'block';
-        statusDiv.className = 'alert alert-warning';
-        statusDiv.textContent = response.message || 'Không tìm thấy kết quả nào phù hợp.';
+        showStatus(response.message || 'Không tìm thấy giao dịch.', 'warning');
       }
+      searchBtn.disabled = false;
+      searchBtn.textContent = 'Tìm Kiếm';
     }
 
     function handleSearchError(err) {
-      const searchBtn = document.getElementById('searchButton');
-      const statusDiv = document.getElementById('status');
-      
-      searchBtn.disabled = false;
-      searchBtn.textContent = 'Tìm Kiếm';
+      showStatus('Lỗi: ' + err.message, 'danger');
+      document.getElementById('searchButton').disabled = false;
+      document.getElementById('searchButton').textContent = 'Tìm Kiếm';
+    }
 
-      statusDiv.style.display = 'block';
-      statusDiv.className = 'alert alert-danger';
-      statusDiv.textContent = 'Lỗi: ' + err.message;
+    function handleRowClick(indexValue) {
+      if (!isEditMode || !indexValue) return;
+      showStatus('Đang lấy dữ liệu để sửa...', 'info');
+      google.script.run
+        .withSuccessHandler(data => {
+          google.script.run.withSuccessHandler(() => google.script.host.close()).passDataToOpener(data);
+        })
+        .withFailureHandler(handleSearchError)
+        .getDataForEdit(indexValue);
+    }
+    
+    function showStatus(message, type) {
+        const statusDiv = document.getElementById('status');
+        statusDiv.style.display = 'block';
+        statusDiv.className = `alert alert-${type}`;
+        statusDiv.textContent = message;
     }
   </script>
 </body>

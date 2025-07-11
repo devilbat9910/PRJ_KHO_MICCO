@@ -1,15 +1,9 @@
 /**
  * @OnlyCurrentDoc
- * TỆP DỊCH VỤ (SERVICE LAYER) - REFACTORED FOR NEW TEMPLATE
- * Chứa logic nghiệp vụ, điều phối dữ liệu giữa UI và DB.
- * Không tương tác trực tiếp với Sheet.
+ * TỆP DỊCH VỤ (SERVICE LAYER)
  */
 
 const MASTER_INVENTORY_SHEET = 'TON_KHO_tonghop';
-
-// ===================================================================================
-// DATA GETTERS & HELPERS
-// ===================================================================================
 
 function getMasterDataForForm() {
   const categories = db_getCategoryData();
@@ -54,90 +48,17 @@ function service_getRecentTransactions() {
   return data.reverse();
 }
 
-/**
- * Lấy toàn bộ dữ liệu của một lô hàng dựa trên INDEX (SKU) để điền vào form.
- * @param {string} indexValue - Mã INDEX (SKU) cần tra cứu.
- * @returns {object | null} - Đối tượng chứa thông tin chi tiết của lô hàng hoặc null nếu không tìm thấy.
- */
-function service_getDataByIndex(indexValue) {
-  if (!indexValue) {
-    return null;
+function service_getOriginalTransactionForEdit(indexValue) {
+  if (!indexValue) return null;
+  const txObject = db_getTransactionLogBySku(indexValue);
+  if (!txObject) return null;
+  
+  if (txObject.ngaySanXuat instanceof Date) {
+    txObject.ngaySanXuat = Utilities.formatDate(txObject.ngaySanXuat, "GMT+7", "yyyy-MM-dd");
   }
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(MASTER_INVENTORY_SHEET);
-  if (!sheet) {
-    throw new Error(`Không tìm thấy sheet tồn kho chính: "${MASTER_INVENTORY_SHEET}"`);
-  }
-
-  const lastRow = sheet.getLastRow();
-  // Một sheet hợp lệ phải có ít nhất 3 hàng (Tiêu đề, Tổng, Dữ liệu)
-  if (lastRow < 3) {
-    return null;
-  }
-
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const indexCol = headers.indexOf('INDEX');
-  if (indexCol === -1) {
-    throw new Error("Không tìm thấy cột 'INDEX' trong sheet tồn kho.");
-  }
-
-  // Dữ liệu bắt đầu từ hàng 3, nên dải ô là (3, index, lastRow - 2, 1)
-  const indexData = sheet.getRange(3, indexCol + 1, lastRow - 2, 1).getValues();
-  const rowIndexInArray = indexData.findIndex(row => row[0] === indexValue);
-
-  if (rowIndexInArray === -1) {
-    return null; // Không tìm thấy INDEX
-  }
-
-  const targetRowOnSheet = rowIndexInArray + 3; // Vị trí hàng thực tế trên sheet
-  const rowData = sheet.getRange(targetRowOnSheet, 1, 1, sheet.getLastColumn()).getValues()[0];
-
-  const result = { inventory: {} };
-  const categories = db_getCategoryData(); // Lấy map để tra cứu tên đầy đủ
-
-  headers.forEach((header, i) => {
-    const value = rowData[i];
-    switch (header) {
-      case 'Tên_SP':
-        // Tra cứu ngược từ tên viết tắt ra tên đầy đủ để điền vào form
-        const productFullName = Object.keys(categories.productMap).find(key => categories.productMap[key].shortName === value);
-        result.tenSanPham = productFullName || value; // Fallback nếu không tìm thấy
-        break;
-      case 'Quy_Cách':
-        result.quyCach = value;
-        break;
-      case 'Lô_SX':
-        result.loSanXuat = value;
-        break;
-      case 'Ngày_SX':
-        result.ngaySanXuat = value instanceof Date ? Utilities.formatDate(value, "GMT+7", "yyyy-MM-dd") : value;
-        break;
-      case 'QC_Status':
-        result.tinhTrangChatLuong = value;
-        break;
-      case 'ĐV_SX':
-        result.phanXuong = value;
-        break;
-      default:
-        // Giả định các cột còn lại là kho và lấy số lượng tồn
-        if (header && (header.startsWith('ĐT') || header.startsWith('CP') || header.startsWith('QN'))) {
-          result.inventory[header] = parseFloat(value) || 0;
-        }
-        break;
-    }
-  });
-
-  return result;
+  return txObject;
 }
 
-
-// ===================================================================================
-// CORE TRANSACTION & INVENTORY LOGIC
-// ===================================================================================
-
-/**
- * REFACTORED: Xử lý một giao dịch, làm giàu dữ liệu theo template mới.
- */
 function service_processSingleTransaction(formObject) {
   const categoryData = db_getCategoryData();
 
@@ -160,9 +81,9 @@ function service_processSingleTransaction(formObject) {
   const txObject = {
     ...formObject,
     soLuong: quantity,
-    Tên_SP: productInfo.shortName, // Lấy tên viết tắt từ map
-    Quy_Cách: formObject.quyCach,   // LẤY TRỰC TIẾP TỪ FORM
-    ĐV_SX: formObject.phanXuong,    // LẤY TRỰC TIẾP TỪ FORM
+    Tên_SP: productInfo.shortName,
+    Quy_Cách: formObject.quyCach,
+    ĐV_SX: formObject.phanXuong,
     Lô_SX: formObject.loSanXuat,
     Ngày_SX: new Date(formObject.ngaySanXuat),
     QC_Status: formObject.tinhTrangChatLuong,
@@ -190,35 +111,26 @@ function service_processSingleTransaction(formObject) {
   return { success: true, message: "Giao dịch thành công!" };
 }
 
-/**
- * REFACTORED (v3): Tạo mã INDEX (SKU) theo công thức {mã lô}-{quy cách}-{date}-{px sản xuất}.
- * Sửa lỗi logic lấy mã lô.
- */
 function generateSku(txObject) {
     const fullLotNumber = txObject.Lô_SX || '';
-    // Tách lấy mã lô thực tế (bỏ đi phần MMYY ở đầu, ví dụ: "0725R08" -> "R08")
     const lotCode = (fullLotNumber && fullLotNumber.length > 4) ? fullLotNumber.substring(4) : fullLotNumber || 'NA';
     const spec = txObject.Quy_Cách || 'NA';
     const dateString = Utilities.formatDate(new Date(txObject.Ngày_SX), "GMT+7", "ddMMyy");
     
-    // Chuyển đổi ĐV_SX thành mã
     const factory = txObject.ĐV_SX || '';
     const factoryMap = { 'Px Đông Triều': 'ĐT', 'Px Cẩm Phả': 'CP', 'Px Quảng Ninh': 'QN' };
-    const factoryCode = factoryMap[factory] || factory; // Fallback to original if not in map
+    const factoryCode = factoryMap[factory] || factory;
 
     return `${lotCode}-${spec}-${dateString}-${factoryCode}`.toUpperCase().replace(/ /g, '-');
 }
 
-/**
- * REFACTORED: Hàm điều phối chính để cập nhật ma trận tồn kho.
- */
 function updateMasterInventory(txObject) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(MASTER_INVENTORY_SHEET);
   if (!sheet) throw new Error(`Không tìm thấy sheet tồn kho chính: "${MASTER_INVENTORY_SHEET}"`);
 
   if (sheet.getLastRow() < 2 || sheet.getLastColumn() < 1) {
-     throw new Error(`Lỗi nghiêm trọng: Sheet "${MASTER_INVENTORY_SHEET}" không hợp lệ. Vui lòng chạy lại "Thiết lập cấu trúc".`);
+     throw new Error(`Lỗi nghiêm trọng: Sheet "${MASTER_INVENTORY_SHEET}" không hợp lệ.`);
   }
 
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
@@ -232,17 +144,13 @@ function updateMasterInventory(txObject) {
     _updateInventoryValue(sheet, headers, targetRow, txObject.kho, quantity);
   }
   
-  SpreadsheetApp.flush(); // Buộc ghi dữ liệu trước khi xóa
-
-  _removeZeroInventoryRows(sheet, headers); // Xóa các hàng có tồn kho bằng 0
+  SpreadsheetApp.flush();
+  _removeZeroInventoryRows(sheet, headers);
 }
 
-/**
- * REFACTORED (v2): Tìm hoặc tạo hàng mới dựa trên cấu trúc cột động.
- */
 function _findOrCreateInventoryRow(sheet, headers, txObject) {
   const indexCol = headers.indexOf('INDEX');
-  if (indexCol === -1) throw new Error("Không tìm thấy cột 'INDEX' trong sheet tồn kho.");
+  if (indexCol === -1) throw new Error("Không tìm thấy cột 'INDEX'.");
 
   const lastRow = sheet.getLastRow();
   let targetRow = -1;
@@ -267,8 +175,8 @@ function _findOrCreateInventoryRow(sheet, headers, txObject) {
         case 'Ngày_SX': return txObject.Ngày_SX;
         case 'QC_Status': return txObject.QC_Status;
         case 'ĐV_SX': return txObject.ĐV_SX;
-        case 'Tổng SL': return null; // Để công thức tự tính
-        default: return 0; // Mặc định số lượng kho là 0
+        case 'Tổng SL': return null;
+        default: return 0;
       }
     });
     sheet.appendRow(newRowData);
@@ -276,271 +184,242 @@ function _findOrCreateInventoryRow(sheet, headers, txObject) {
   }
 }
 
-/**
- * Tìm và xóa tất cả các hàng có giá trị ở cột "Tổng SL" bằng 0.
- */
 function _removeZeroInventoryRows(sheet, headers) {
   const totalColIndex = headers.indexOf('Tổng SL');
-  if (totalColIndex === -1) {
-    Logger.log('Cảnh báo: Không tìm thấy cột "Tổng SL" để thực hiện xóa hàng tồn kho bằng 0.');
-    return;
-  }
+  if (totalColIndex === -1) return;
 
   const lastRow = sheet.getLastRow();
-  if (lastRow < 3) return; // Không có dữ liệu để xóa
+  if (lastRow < 3) return;
 
   const totalValues = sheet.getRange(3, totalColIndex + 1, lastRow - 2, 1).getValues();
   const rowsToDelete = [];
 
   totalValues.forEach((row, index) => {
     if (parseFloat(row[0]) === 0) {
-      // +3 vì dữ liệu bắt đầu từ hàng 3
       rowsToDelete.push(index + 3);
     }
   });
 
-  // Xóa hàng từ dưới lên để tránh làm thay đổi chỉ số của các hàng còn lại
   if (rowsToDelete.length > 0) {
-    rowsToDelete.reverse().forEach(rowIndex => {
-      sheet.deleteRow(rowIndex);
-    });
-    Logger.log(`Đã xóa ${rowsToDelete.length} hàng có tồn kho bằng 0.`);
+    rowsToDelete.reverse().forEach(rowIndex => sheet.deleteRow(rowIndex));
   }
 }
 
 function _updateInventoryValue(sheet, headers, row, warehouseName, quantityChange) {
-  // Bỏ qua tiền tố "Kho " để khớp với tên cột như "ĐT3", "CP4"
-  const normalizedWarehouseName = warehouseName.replace('Kho ', '').trim();
-  
-  const warehouseColumnIndex = headers.indexOf(normalizedWarehouseName);
+  const warehouseColumnIndex = headers.indexOf(warehouseName);
   if (warehouseColumnIndex === -1) {
-    throw new Error(`Tên kho không hợp lệ. Không tìm thấy cột cho kho "${warehouseName}" (đã chuẩn hóa thành "${normalizedWarehouseName}") trong sheet ${sheet.getName()}.`);
+    throw new Error(`Tên kho không hợp lệ: "${warehouseName}".`);
   }
   const cell = sheet.getRange(row, warehouseColumnIndex + 1);
   const currentValue = parseFloat(cell.getValue()) || 0;
   cell.setValue(currentValue + quantityChange);
 }
 
-// ===================================================================================
-// BÁO CÁO VÀ CHỐT SỔ
-// ===================================================================================
-
-function service_createMonthlySnapshot() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const ui = SpreadsheetApp.getUi();
-  const sourceSheet = ss.getSheetByName(MASTER_INVENTORY_SHEET);
-  if (!sourceSheet) throw new Error(`Không tìm thấy sheet nguồn: "${MASTER_INVENTORY_SHEET}"`);
-  const snapshotDate = new Date();
-  const snapshotSheetName = `Snapshot_${Utilities.formatDate(snapshotDate, "GMT+7", "MM-yyyy")}`;
-  let snapshotSheet = ss.getSheetByName(snapshotSheetName);
-  if (snapshotSheet) {
-    const response = ui.alert('Cảnh báo', `Sheet chốt sổ cho tháng này ("${snapshotSheetName}") đã tồn tại. Bạn có muốn xóa sheet cũ và tạo lại không?`, ui.ButtonSet.YES_NO);
-    if (response == ui.Button.YES) {
-      ss.deleteSheet(snapshotSheet);
-    } else {
-      return { success: false, message: 'Hành động đã bị hủy bởi người dùng.' };
-    }
-  }
-  snapshotSheet = sourceSheet.copyTo(ss).setName(snapshotSheetName);
-  const dataRange = snapshotSheet.getDataRange();
-  dataRange.copyTo(dataRange, { contentsOnly: true });
-  ss.setActiveSheet(snapshotSheet);
-  return { success: true, message: `Đã tạo thành công sheet chốt sổ: "${snapshotSheetName}"` };
-}
-
-/**
- * REFACTORED: Tạo báo cáo tồn kho dựa trên cấu trúc template mới.
- */
-function service_generateMonthlyReport() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sourceSheet = ss.getSheetByName(MASTER_INVENTORY_SHEET);
-  if (!sourceSheet) throw new Error(`Không tìm thấy sheet nguồn: "${MASTER_INVENTORY_SHEET}"`);
-
-  const dataRange = sourceSheet.getDataRange();
-  const allData = dataRange.getValues();
-
-  if (allData.length < 2) {
-    db_writeReportData([]);
-    return { success: true, message: "Báo cáo đã được tạo (không có dữ liệu)." };
+function service_updateTransaction(formObject, originalTx) {
+  if (!originalTx || !originalTx.sku) {
+    throw new Error("Dữ liệu giao dịch gốc không hợp lệ.");
   }
 
-  const headers = allData.shift();
-  const warehouseNames = headers.filter(h => h.startsWith('ĐT') || h.startsWith('CP'));
+  const changes = _getChangeSet(originalTx, formObject);
+  if (changes.details.length === 0) {
+    return { success: true, message: "Không có thay đổi nào." };
+  }
+
+  if (!changes.isInventoryChange) {
+    const updateNote = `UPDATED (info): ${changes.details.join('; ')}`;
+    db_updateLogEntry(originalTx.sku, formObject, updateNote);
+    return { success: true, message: `Cập nhật thông tin thành công.` };
+  }
+
+  const reversalTx = { ...originalTx, soLuong: parseFloat(originalTx.soLuong) };
+  if (reversalTx.loaiGiaoDich === 'Điều chuyển') {
+      updateMasterInventory({ ...reversalTx, loaiGiaoDich: 'Nhập', kho: originalTx.khoDi });
+      updateMasterInventory({ ...reversalTx, loaiGiaoDich: 'Xuất', kho: originalTx.kho });
+  } else {
+      reversalTx.loaiGiaoDich = (originalTx.loaiGiaoDich === 'Nhập') ? 'Xuất' : 'Nhập';
+      updateMasterInventory(reversalTx);
+  }
   
-  const productNameIndex = headers.indexOf('Tên_SP');
-  const specIndex = headers.indexOf('Quy_Cách');
-  if (productNameIndex === -1 || specIndex === -1) {
-    throw new Error("Không tìm thấy cột 'Tên_SP' hoặc 'Quy_Cách' trong sheet tồn kho.");
-  }
+  const result = service_processSingleTransaction(formObject);
 
-  const aggregatedData = {};
+  const updateNoteForLog = `UPDATED: ${changes.details.join('; ')}`;
+  db_updateLogEntry(originalTx.sku, formObject, updateNoteForLog);
 
-  allData.forEach(row => {
-    const productName = row[productNameIndex];
-    const productSpec = row[specIndex];
-    if (!productName) return; // Bỏ qua các hàng không có tên sản phẩm
-    const productKey = `${productName}_${productSpec}`;
-
-    if (!aggregatedData[productKey]) {
-      aggregatedData[productKey] = { name: productName, spec: productSpec, total: 0, warehouses: {} };
-      warehouseNames.forEach(wh => aggregatedData[productKey].warehouses[wh] = 0);
-    }
-
-    warehouseNames.forEach(wh => {
-      const whIndex = headers.indexOf(wh);
-      if (whIndex !== -1) {
-        const quantity = parseFloat(row[whIndex]) || 0;
-        aggregatedData[productKey].warehouses[wh] += quantity;
-        aggregatedData[productKey].total += quantity;
-      }
-    });
-  });
-
-  const reportHeaders = ['Tên Sản Phẩm', 'Quy Cách', 'Tổng Tồn Kho', ...warehouseNames];
-  const reportRows = Object.values(aggregatedData).map(prod => {
-    const row = [prod.name, prod.spec, prod.total];
-    warehouseNames.forEach(wh => row.push(prod.warehouses[wh]));
-    return row;
-  });
-
-  db_writeReportData([reportHeaders, ...reportRows]);
-
-  return { success: true, message: `Báo cáo tồn kho đã được tạo/cập nhật thành công trong sheet "${REPORT_SHEET_NAME}".` };
+  return { success: true, message: `Giao dịch đã được cập nhật. ${changes.details.join('; ')}` };
 }
 
-// ===================================================================================
-// LOGIC TRA CỨU
-// ===================================================================================
+function _getChangeSet(oldTx, newTx) {
+    const changes = [];
+    let isInventoryChange = false;
+    const inventoryKeys = ['loaiGiaoDich', 'soLuong', 'kho', 'khoDi', 'tenSanPham', 'quyCach', 'loSanXuat', 'phanXuong'];
+    const mapping = {
+        tenSanPham: 'Tên SP', quyCach: 'Quy Cách', soLuong: 'Số Lượng',
+        loSanXuat: 'Lô SX', ngaySanXuat: 'Ngày SX', tinhTrangChatLuong: 'QC Status',
+        phanXuong: 'ĐV SX', kho: 'Kho', khoDi: 'Kho Đi', ghiChu: 'Ghi Chú',
+        loaiGiaoDich: 'Loại GD'
+    };
 
-/**
- * Thực hiện tìm kiếm trong sheet TON_KHO_tonghop dựa trên nhiều tiêu chí.
- * @param {object} searchCriteria - Đối tượng chứa các tiêu chí tìm kiếm.
- * @returns {object} - Một đối tượng chứa kết quả, bao gồm headers và data.
- */
+    for (const key in mapping) {
+        let oldVal = oldTx[key] ? oldTx[key].toString().trim() : '';
+        let newVal = newTx[key] ? newTx[key].toString().trim() : '';
+        
+        if (key === 'ngaySanXuat') {
+            oldVal = oldTx[key] ? Utilities.formatDate(new Date(oldTx[key]), "GMT+7", "yyyy-MM-dd") : '';
+            newVal = newTx[key] ? Utilities.formatDate(new Date(newTx[key]), "GMT+7", "yyyy-MM-dd") : '';
+        }
+
+        if (oldVal !== newVal) {
+            changes.push(`${mapping[key]} (${oldVal} -> ${newVal})`);
+            if (inventoryKeys.includes(key)) {
+                isInventoryChange = true;
+            }
+        }
+    }
+    return { details: changes, isInventoryChange: isInventoryChange };
+}
+
 function service_performSearch(searchCriteria) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(MASTER_INVENTORY_SHEET);
-  if (!sheet) throw new Error(`Không tìm thấy sheet tồn kho chính: "${MASTER_INVENTORY_SHEET}"`);
+  const sheet = ss.getSheetByName(LOG_SHEET_NAME);
+  if (!sheet) throw new Error(`Không tìm thấy sheet log: "${LOG_SHEET_NAME}"`);
 
   const lastRow = sheet.getLastRow();
-  if (lastRow < 3) return { success: true, headers: [], data: [], message: 'Không có dữ liệu tồn kho để tìm kiếm.' };
+  if (lastRow < 2) return { success: true, headers: [], data: [], message: 'Không có dữ liệu để tìm kiếm.' };
 
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const allData = sheet.getRange(3, 1, lastRow - 2, sheet.getLastColumn()).getValues();
-  
-  const indexCol = headers.indexOf('INDEX');
-  const tenSpCol = headers.indexOf('Tên_SP');
-  const loSxCol = headers.indexOf('Lô_SX');
-  const quyCachCol = headers.indexOf('Quy_Cách');
-  const qcStatusCol = headers.indexOf('QC_Status');
-  const ngaySxCol = headers.indexOf('Ngày_SX');
-  const tongDtCol = headers.indexOf('Tổng_ĐT');
+  const allData = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
 
-  // --- LOGIC TÌM KIẾM THÔNG MINH ---
-  // 1. Nếu có INDEX, chỉ tìm theo INDEX
+  const indexCol = headers.indexOf('INDEX (SKU)');
+  const tenSanPhamCol = headers.indexOf('Tên Sản Phẩm');
+  const loSanXuatCol = headers.indexOf('Lô Sản Xuất');
+
+  let filteredData = allData;
+
+  // Priority 1: Search by INDEX
   if (searchCriteria.index) {
-    const result = allData.find(row => row[indexCol] === searchCriteria.index);
-    const finalData = result ? [result] : [];
-    return formatAndReturn(finalData, headers);
+    filteredData = allData.filter(row => row[indexCol] && row[indexCol].toString().toUpperCase().includes(searchCriteria.index));
   }
-
-  // 2. Kiểm tra xem Tên Sản Phẩm có phải là một INDEX không
-  if (searchCriteria.tenSanPham) {
-      const potentialIndex = searchCriteria.tenSanPham.toUpperCase();
-      const result = allData.find(row => row[indexCol] === potentialIndex);
-      if (result) {
-          // Nếu các trường khác cũng được điền và mâu thuẫn -> báo lỗi
-          if ((searchCriteria.loSanXuat && result[loSxCol] !== searchCriteria.loSanXuat) ||
-              (searchCriteria.quyCach && result[quyCachCol] !== searchCriteria.quyCach)) {
-              throw new Error(`Xung đột dữ liệu: INDEX '${potentialIndex}' được tìm thấy, nhưng các tiêu chí khác (Lô, Quy cách) không khớp. Vui lòng chỉ tìm theo INDEX hoặc các tiêu chí khác.`);
-          }
-          return formatAndReturn([result], headers);
-      }
+  // Priority 2: Combined search if INDEX is not provided
+  else if (searchCriteria.tenSanPham || searchCriteria.loSanXuat) {
+    filteredData = allData.filter(row => {
+      const matchTenSanPham = !searchCriteria.tenSanPham || (row[tenSanPhamCol] && row[tenSanPhamCol] === searchCriteria.tenSanPham);
+      const matchLoSanXuat = !searchCriteria.loSanXuat || (row[loSanXuatCol] && row[loSanXuatCol].toString().includes(searchCriteria.loSanXuat));
+      return matchTenSanPham && matchLoSanXuat;
+    });
+  }
+  // Default: No criteria, return last 10
+  else {
+    return formatAndReturn(allData.slice(-10).reverse(), headers, "Hiển thị 10 giao dịch gần nhất.");
   }
   
-  // 3. Tìm kiếm kết hợp nhiều tiêu chí
-  const filteredData = allData.filter(row => {
-    // Lọc bỏ các hàng có tổng tồn kho bằng 0
-    if (parseFloat(row[tongDtCol]) === 0) {
-      return false;
-    }
-  
-    const tenSpMatch = !searchCriteria.tenSanPham || row[tenSpCol].toString().toLowerCase().includes(searchCriteria.tenSanPham.toLowerCase());
-    const loSxMatch = !searchCriteria.loSanXuat || row[loSxCol].toString().toLowerCase().includes(searchCriteria.loSanXuat.toLowerCase());
-    const quyCachMatch = !searchCriteria.quyCach || row[quyCachCol].toString().toLowerCase().includes(searchCriteria.quyCach.toLowerCase());
-    const qcStatusMatch = !searchCriteria.qcStatus || row[qcStatusCol] === searchCriteria.qcStatus;
-    
-    const startDate = searchCriteria.ngaySXStart ? new Date(searchCriteria.ngaySXStart) : null;
-    const endDate = searchCriteria.ngaySXEnd ? new Date(searchCriteria.ngaySXEnd) : null;
-    if (endDate) endDate.setDate(endDate.getDate() + 1); // Bao gồm cả ngày kết thúc
-    
-    const cellDate = row[ngaySxCol] ? new Date(row[ngaySxCol]) : null;
-    
-    const dateMatch = (!startDate || (cellDate && cellDate >= startDate)) && (!endDate || (cellDate && cellDate < endDate));
-
-    return tenSpMatch && loSxMatch && quyCachMatch && qcStatusMatch && dateMatch;
-  });
-
-  return formatAndReturn(filteredData, headers);
+  return formatAndReturn(filteredData.reverse(), headers);
 }
 
-/**
- * Hàm trợ giúp để định dạng ngày và trả về kết quả tìm kiếm.
- */
-function formatAndReturn(data, headers) {
+
+function formatAndReturn(data, headers, message = null) {
     if (data.length === 0) {
       return { success: true, headers: headers, data: [], message: 'Không tìm thấy kết quả nào phù hợp.' };
   }
   
-  const ngaySXIndex = headers.indexOf('Ngày_SX');
+  const tenSanPhamCol = headers.indexOf('Tên Sản Phẩm');
+  const ngaySanXuatCol = headers.indexOf('Ngày Sản Xuất');
+
   const formattedData = data.map(row => {
-      if (ngaySXIndex !== -1 && row[ngaySXIndex] instanceof Date) {
-          row[ngaySXIndex] = Utilities.formatDate(row[ngaySXIndex], "GMT+7", "dd/MM/yyyy");
+      // Format date
+      if (row[ngaySanXuatCol] instanceof Date) {
+        row[ngaySanXuatCol] = Utilities.formatDate(row[ngaySanXuatCol], "GMT+7", "dd/MM/yyyy");
       }
       return row;
   });
 
-  return { success: true, headers: headers, data: formattedData };
+  return {
+    success: true,
+    headers: headers,
+    data: formattedData,
+    message: message || `Tìm thấy ${data.length} kết quả.`
+  };
 }
 
-
-// ===================================================================================
-// DASHBOARD LOGIC
-// ===================================================================================
-
-function service_getDashboardData(filters) {
-  const { headers, data } = db_getInventoryData();
-  if (data.length === 0) {
-    return { headers: headers, data: [] };
+/**
+ * Creates a snapshot of the current inventory sheet.
+ * The snapshot is a static copy of the data at a specific point in time.
+ */
+function service_createMonthlySnapshot() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sourceSheet = ss.getSheetByName(MASTER_INVENTORY_SHEET);
+  if (!sourceSheet) {
+    throw new Error(`Không tìm thấy sheet nguồn: "${MASTER_INVENTORY_SHEET}"`);
   }
 
-  const searchTerm = filters.searchTerm ? filters.searchTerm.toLowerCase() : '';
-  const khoFilter = filters.kho;
-  // Khu vực filter is not directly applicable on TON_KHO_tonghop, but we keep it for future use
-  // const khuVucFilter = filters.khuVuc;
+  const date = new Date();
+  const month = ('0' + (date.getMonth() + 1)).slice(-2);
+  const year = date.getFullYear();
+  const snapshotName = `Snapshot_${month}-${year}`;
 
-  const filteredData = data.filter(row => {
-    // Combine multiple columns for a general search
-    const rowString = row.join(' ').toLowerCase();
-    const searchMatch = searchTerm ? rowString.includes(searchTerm) : true;
-    
-    // Filter by warehouse value
-    let khoMatch = true;
-    if (khoFilter) {
-      const khoIndex = headers.indexOf(khoFilter);
-      if (khoIndex !== -1) {
-        khoMatch = parseFloat(row[khoIndex]) > 0;
-      } else {
-        khoMatch = false; // If kho doesn't exist in header, it's a mismatch
-      }
-    }
+  if (ss.getSheetByName(snapshotName)) {
+    return { success: false, message: `Snapshot cho tháng ${month}/${year} đã tồn tại.` };
+  }
 
-    return searchMatch && khoMatch;
-  });
+  const snapshotSheet = sourceSheet.copyTo(ss);
+  snapshotSheet.setName(snapshotName);
 
-  return { headers: headers, data: filteredData };
+  // Convert all data to static values to preserve the state
+  const range = snapshotSheet.getDataRange();
+  range.setValues(range.getValues());
+
+  ss.setActiveSheet(snapshotSheet);
+  return { success: true, message: `Đã tạo thành công snapshot: "${snapshotName}"` };
 }
 
-function service_getFilterOptions() {
-  return db_getFilterOptionsFromDanhMuc();
+/**
+ * Generates a summary report of the current inventory.
+ * It aggregates stock by product name and specification.
+ */
+function service_generateMonthlyReport() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sourceSheet = ss.getSheetByName(MASTER_INVENTORY_SHEET);
+  if (!sourceSheet || sourceSheet.getLastRow() < 3) {
+    return { success: false, message: "Không có dữ liệu tồn kho để tạo báo cáo." };
+  }
+
+  const headers = sourceSheet.getRange(1, 1, 1, sourceSheet.getLastColumn()).getValues()[0];
+  const data = sourceSheet.getRange(3, 1, sourceSheet.getLastRow() - 2, sourceSheet.getLastColumn()).getValues();
+
+  const productNameCol = headers.indexOf('Tên_SP');
+  const specCol = headers.indexOf('Quy_Cách');
+  const totalCol = headers.indexOf('Tổng SL');
+
+  if (productNameCol === -1 || specCol === -1 || totalCol === -1) {
+      throw new Error("Cấu trúc sheet 'TON_KHO_tonghop' không hợp lệ. Thiếu các cột 'Tên_SP', 'Quy_Cách' hoặc 'Tổng SL'.");
+  }
+  
+  const reportData = {};
+
+  data.forEach(row => {
+    const productName = row[productNameCol];
+    const spec = row[specCol];
+    const total = parseFloat(row[totalCol]) || 0;
+
+    if (!productName || total === 0) return;
+
+    const key = `${productName}|${spec}`;
+    if (!reportData[key]) {
+      reportData[key] = {
+        name: productName,
+        spec: spec,
+        total: 0
+      };
+    }
+    reportData[key].total += total;
+  });
+
+  const reportArray = [['Tên Sản Phẩm', 'Quy Cách', 'Tổng Tồn Kho']];
+  for (const key in reportData) {
+    const item = reportData[key];
+    reportArray.push([item.name, item.spec, item.total]);
+  }
+  
+  db_writeReportData(reportArray);
+
+  return { success: true, message: `Báo cáo tồn kho đã được tạo/cập nhật tại sheet "BaoCaoTonKho".` };
 }

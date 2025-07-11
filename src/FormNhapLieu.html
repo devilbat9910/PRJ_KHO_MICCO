@@ -12,18 +12,17 @@
 </head>
 <body>
   <div id="inputForm">
-    <!-- Các trường nhập liệu -->
     <div class="form-group">
       <label for="loaiGiaoDich">Loại Giao Dịch</label>
-      <select class="form-control" id="loaiGiaoDich" onchange="handleTransactionTypeChange()">
+      <select class="form-control" id="loaiGiaoDich">
         <option value="Nhập">Nhập</option>
         <option value="Xuất">Xuất</option>
         <option value="Điều chuyển">Điều chuyển</option>
       </select>
     </div>
-    <div class="form-group" id="index-group" style="display: none;">
-      <label for="index">INDEX (SKU) của Lô Hàng</label>
-      <input type="text" class="form-control" id="index" placeholder="Nhập INDEX và bấm ra ngoài để tự điền" onblur="handleIndexBlur()">
+    <div class="form-group">
+      <label for="index">INDEX (SKU)</label>
+      <input type="text" class="form-control" id="index" readonly>
     </div>
     <div class="form-group">
       <label for="tenSanPham">Tên Sản Phẩm</label>
@@ -72,6 +71,7 @@
     
     <div class="d-flex justify-content-between">
       <button class="btn btn-primary" style="flex-grow: 1; margin-right: 5px;" id="submitButton" onclick="submitForm()">Ghi Lại</button>
+      <button class="btn btn-warning" style="flex-grow: 1; margin-left: 5px; margin-right: 5px;" id="editButton" onclick="loadForEdit()">Tra Cứu & Sửa</button>
       <button class="btn btn-secondary" style="flex-grow: 1; margin-left: 5px; margin-right: 5px;" id="processTableButton" onclick="processManualTable()">Xử lý Bảng</button>
       <button type="button" class="btn btn-info" style="flex-grow: 1; margin-left: 5px;" onclick="fillWithTestData()">TEST</button>
     </div>
@@ -79,98 +79,48 @@
   </div>
 
   <script>
-    let allData = {}; // Biến toàn cục để lưu dữ liệu dropdown
-    let currentInventoryData = null; // Biến toàn cục để lưu dữ liệu tồn kho của INDEX đã nhập
+    let allData = {};
+    let originalTxData = null;
 
-    // Chạy khi form được tải
     document.addEventListener("DOMContentLoaded", function() {
       resetForm();
       google.script.run
         .withSuccessHandler(populateDropdowns)
         .withFailureHandler(handleDropdownError)
         .getDropdownData();
-      document.getElementById('ngaySanXuat').valueAsDate = new Date(); // Set ngày sản xuất mặc định
     });
 
-    // Reset form về trạng thái ban đầu
     function resetForm() {
-        // Thêm kiểm tra null để tránh lỗi crash script
-        const get = (id) => document.getElementById(id);
-
-        const loaiGiaoDich = get('loaiGiaoDich');
-        if (loaiGiaoDich) loaiGiaoDich.selectedIndex = 0;
-
-        const tenSanPham = get('tenSanPham');
-        if (tenSanPham) tenSanPham.selectedIndex = 0;
-
-        const soLuong = get('soLuong');
-        if (soLuong) soLuong.value = '';
-
-        const loSanXuat = get('loSanXuat');
-        if (loSanXuat) loSanXuat.value = '';
-
-        const ngaySanXuat = get('ngaySanXuat');
-        if (ngaySanXuat) ngaySanXuat.valueAsDate = new Date();
+        document.getElementById('inputForm').reset();
+        document.getElementById('ngaySanXuat').valueAsDate = new Date();
+        originalTxData = null;
+        document.getElementById('status').style.display = 'none';
         
-        const tinhTrangChatLuong = get('tinhTrangChatLuong');
-        if (tinhTrangChatLuong) tinhTrangChatLuong.selectedIndex = 0;
-
-        const phanXuong = get('phanXuong');
-        if (phanXuong) phanXuong.selectedIndex = 0;
-
-        const kho = get('kho');
-        if (kho) kho.selectedIndex = 0;
-
-        const ghiChu = get('ghiChu');
-        if (ghiChu) ghiChu.value = '';
-        
-        const khoDiSelect = get('khoDi');
-        if (khoDiSelect) khoDiSelect.selectedIndex = 0;
-
-        // Reset lại trạng thái của các trường bị disable
-        const fieldsToToggle = ['tenSanPham', 'quyCach', 'loSanXuat', 'ngaySanXuat', 'phanXuong', 'tinhTrangChatLuong'];
-        fieldsToToggle.forEach(id => {
-          const el = get(id);
-          if (el) el.disabled = false;
-        });
-        
-        handleTransactionTypeChange();
-        currentInventoryData = null; // Xóa dữ liệu tồn kho cũ
-
-        const statusDiv = get('status');
-        if(statusDiv) statusDiv.style.display = 'none';
-        
-        const submitBtn = get('submitButton');
-        if(submitBtn) {
-          submitBtn.disabled = false;
-          submitBtn.textContent = 'Ghi Lại Giao Dịch';
-        }
+        const submitBtn = document.getElementById('submitButton');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Ghi Lại';
+        submitBtn.classList.remove('btn-success');
+        submitBtn.classList.add('btn-primary');
     }
 
-    // Điền dữ liệu vào các dropdown và lưu vào biến toàn cục
     function populateDropdowns(data) {
-      allData = data; // Lưu dữ liệu để hàm TEST có thể sử dụng
+      allData = data;
       populateSelect('tenSanPham', allData.products);
       populateSelect('phanXuong', allData.factories);
       populateSelect('kho', allData.warehouses);
       populateSelect('khoDi', allData.warehouses);
     }
 
-    // Hàm xử lý lỗi khi không tải được dropdown
     function handleDropdownError(err) {
-      const message = 'Không thể tải dữ liệu cho các ô lựa chọn. Vui lòng kiểm tra lại sheet "DANH MUC" và thử lại. Lỗi: ' + err.message;
-      showStatus(message, false);
-      document.getElementById('tenSanPham').disabled = true;
-      document.getElementById('phanXuong').disabled = true;
-      document.getElementById('kho').disabled = true;
+      showStatus('Lỗi: ' + err.message, false);
     }
 
     function populateSelect(elementId, options) {
       const select = document.getElementById(elementId);
-      if (!select) return; // Bỏ qua nếu không tìm thấy element
+      if (!select) return;
       select.innerHTML = '<option value="" disabled selected>-- Chọn --</option>';
       options.forEach(function(option) {
-        if (typeof option === 'object' && option !== null && option.hasOwnProperty('value') && option.hasOwnProperty('text')) {
+        if (typeof option === 'object' && option !== null) {
           select.add(new Option(option.text, option.value));
         } else {
           select.add(new Option(option, option));
@@ -178,14 +128,13 @@
       });
     }
 
-    // Gửi dữ liệu form đi
     function submitForm() {
       const submitBtn = document.getElementById('submitButton');
+      const isUpdate = originalTxData !== null;
       submitBtn.disabled = true;
       submitBtn.textContent = 'Đang xử lý...';
       
       const formObject = {
-        // ngayGiaoDich sẽ được tạo ở backend
         loaiGiaoDich: document.getElementById('loaiGiaoDich').value,
         index: document.getElementById('index').value,
         tenSanPham: document.getElementById('tenSanPham').value,
@@ -200,41 +149,14 @@
         ghiChu: document.getElementById('ghiChu').value,
       };
 
-      // --- VALIDATION PHÍA CLIENT ---
-      if (!formObject.tenSanPham || !formObject.kho) {
-        showStatus('Vui lòng điền đầy đủ Tên Sản Phẩm và Kho.', false);
-        submitBtn.disabled = false; submitBtn.textContent = 'Ghi Lại'; return;
-      }
-      if (formObject.loaiGiaoDich === 'Điều chuyển' && !formObject.khoDi) {
-        showStatus('Vui lòng chọn Kho Đi cho giao dịch điều chuyển.', false);
-        submitBtn.disabled = false; submitBtn.textContent = 'Ghi Lại'; return;
-      }
-      const soLuong = Number(formObject.soLuong);
-      if (isNaN(soLuong) || soLuong <= 0) {
-        showStatus('Số lượng phải là một số lớn hơn 0.', false);
-        submitBtn.disabled = false; submitBtn.textContent = 'Ghi Lại'; return;
-      }
-      if (formObject.loSanXuat && formObject.loSanXuat.includes('Đang tạo gợi ý...')) {
-        showStatus("Lỗi: Mã Lô chưa được tạo xong. Vui lòng chờ và thử lại.", false);
+      if (!isUpdate && (!formObject.tenSanPham || !formObject.soLuong)) {
+        showStatus('Vui lòng điền đầy đủ Tên Sản Phẩm và Số Lượng.', false);
         submitBtn.disabled = false; submitBtn.textContent = 'Ghi Lại'; return;
       }
       
-      // --- KIỂM TRA SỐ LƯỢNG TỒN KHO KHI XUẤT/ĐIỀU CHUYỂN ---
-      if (currentInventoryData && (formObject.loaiGiaoDich === 'Xuất' || formObject.loaiGiaoDich === 'Điều chuyển')) {
-        const khoToCheck = (formObject.loaiGiaoDich === 'Điều chuyển') ? formObject.khoDi.replace('Kho ', '').trim() : formObject.kho.replace('Kho ', '').trim();
-        const availableQuantity = currentInventoryData.inventory[khoToCheck] || 0;
-        
-        if (soLuong > availableQuantity) {
-          const continueAnyway = confirm(`Số lượng xuất (${soLuong}) lớn hơn số lượng tồn kho tại ${khoToCheck} (${availableQuantity}).\n\nBạn có muốn tiếp tục không?`);
-          if (!continueAnyway) {
-            showStatus('Hành động đã bị hủy.', false);
-            submitBtn.disabled = false; submitBtn.textContent = 'Ghi Lại'; return;
-          }
-        }
-      }
-      if (!formObject.quyCach || !/^[Dd Bb]/.test(formObject.quyCach)) {
-        showStatus("Lỗi: Quy Cách phải bắt đầu bằng ký tự 'D', 'd', 'B', hoặc 'b'.", false);
-        submitBtn.disabled = false; submitBtn.textContent = 'Ghi Lại'; return;
+      if (isUpdate && !formObject.index) {
+        showStatus('Lỗi: Không tìm thấy INDEX của giao dịch gốc để cập nhật.', false);
+        submitBtn.disabled = false; submitBtn.textContent = 'Cập Nhật'; return;
       }
 
       google.script.run.withSuccessHandler(function(response) {
@@ -243,179 +165,66 @@
           resetForm(); 
         } else { 
           submitBtn.disabled = false; 
-          submitBtn.textContent = 'Ghi Lại Giao Dịch'; 
+          submitBtn.textContent = isUpdate ? 'Cập Nhật' : 'Ghi Lại'; 
         }
       }).withFailureHandler(function(err) {
         showStatus('Lỗi: ' + err.message, false);
         submitBtn.disabled = false; 
-        submitBtn.textContent = 'Ghi Lại Giao Dịch';
-      }).processFormData(formObject);
+        submitBtn.textContent = isUpdate ? 'Cập Nhật' : 'Ghi Lại';
+      }).processFormData(formObject, isUpdate, originalTxData);
     }
 
-    // Hiển thị thông báo
     function showStatus(message, isSuccess) {
       const statusDiv = document.getElementById('status');
       statusDiv.textContent = message;
       statusDiv.className = isSuccess ? 'alert alert-success mt-3' : 'alert alert-danger mt-3';
       statusDiv.style.display = 'block';
     }
-
-
-    // Xử lý thay đổi giao diện khi chọn loại giao dịch
-    function handleTransactionTypeChange() {
-      const txType = document.getElementById('loaiGiaoDich').value;
-      const khoDiGroup = document.getElementById('kho-di-group');
-      const khoLabel = document.getElementById('kho-label');
-      const indexGroup = document.getElementById('index-group');
-      
-      // Fields to disable when exporting/transferring by INDEX
-      const fieldsToToggle = ['tenSanPham', 'quyCach', 'loSanXuat', 'ngaySanXuat', 'phanXuong', 'tinhTrangChatLuong'];
-
-      if (txType === 'Xuất' || txType === 'Điều chuyển') {
-        indexGroup.style.display = 'block';
-        fieldsToToggle.forEach(id => document.getElementById(id).disabled = true);
-      } else { // Nhập
-        indexGroup.style.display = 'none';
-        fieldsToToggle.forEach(id => document.getElementById(id).disabled = false);
-      }
-
-      if (txType === 'Điều chuyển') {
-        khoDiGroup.style.display = 'block';
-        khoLabel.textContent = 'Kho Đến (Đích)';
-      } else {
-        khoDiGroup.style.display = 'none';
-        khoLabel.textContent = 'Kho';
-      }
+    
+    function loadForEdit() {
+      google.script.run.showTraCuuDialogForEdit();
+      setTimeout(startCheckingForData, 2000);
+      showStatus('Đang mở dialog tra cứu...', 'info');
     }
 
-    // ===================================================================
-    // LOGIC XỬ LÝ INDEX
-    // ===================================================================
-
-    function handleIndexBlur() {
-      const indexValue = document.getElementById('index').value;
-      if (!indexValue) return;
-
-      showStatus('Đang tìm thông tin INDEX...', true);
-      google.script.run
-        .withSuccessHandler(populateFormWithIndexData)
-        .withFailureHandler(handleIndexError)
-        .getDataByIndex(indexValue);
-    }
-
-    function populateFormWithIndexData(data) {
-      if (!data) {
-        handleIndexError({ message: 'Không tìm thấy thông tin cho INDEX này.' });
-        return;
-      }
-      currentInventoryData = data; // Lưu lại để kiểm tra số lượng tồn
-
-      document.getElementById('tenSanPham').value = data.tenSanPham;
-      document.getElementById('quyCach').value = data.quyCach;
-      document.getElementById('ngaySanXuat').value = data.ngaySanXuat;
-      document.getElementById('phanXuong').value = data.phanXuong;
-      document.getElementById('tinhTrangChatLuong').value = data.tinhTrangChatLuong;
-      document.getElementById('loSanXuat').value = data.loSanXuat;
-
-      // Vô hiệu hóa các trường đã được tự động điền
-      const fieldsToDisable = ['tenSanPham', 'quyCach', 'ngaySanXuat', 'phanXuong', 'tinhTrangChatLuong', 'loSanXuat'];
-      fieldsToDisable.forEach(id => document.getElementById(id).disabled = true);
-      
-      showStatus('Đã tự động điền thông tin từ INDEX.', true);
-    }
-
-    function handleIndexError(err) {
-      currentInventoryData = null;
-      showStatus('Lỗi: ' + err.message, false);
-      // Kích hoạt lại các trường để người dùng có thể nhập tay nếu muốn (hoặc sửa INDEX)
-      const fieldsToEnable = ['tenSanPham', 'quyCach', 'ngaySanXuat', 'phanXuong', 'tinhTrangChatLuong', 'loSanXuat'];
-      fieldsToEnable.forEach(id => document.getElementById(id).disabled = false);
-    }
-
-    function suggestLoSanXuat() {
-      const tenSanPham = document.getElementById('tenSanPham').value;
-      const phanXuong = document.getElementById('phanXuong').value;
-      const ngaySanXuat = document.getElementById('ngaySanXuat').value;
-
-      if (tenSanPham && phanXuong && ngaySanXuat) {
-        const loSanXuatInput = document.getElementById('loSanXuat');
-        loSanXuatInput.disabled = true;
-        loSanXuatInput.value = "Đang tạo gợi ý...";
-
+    function startCheckingForData() {
+      const intervalId = setInterval(function() {
         google.script.run
-          .withSuccessHandler(function(suggestedLot) {
-            loSanXuatInput.value = suggestedLot;
-            loSanXuatInput.disabled = false;
+          .withSuccessHandler(function(data) {
+            if (data) {
+              clearInterval(intervalId);
+              originalTxData = data;
+              populateFormForEdit(data);
+            }
           })
-          .withFailureHandler(function(err) {
-            loSanXuatInput.value = "Lỗi tạo gợi ý";
-            loSanXuatInput.disabled = false;
-          })
-          // Gọi hàm với signature mới để xử lý ANFO
-          .suggestLotNumber(tenSanPham, phanXuong, ngaySanXuat);
-      }
+          .checkForEditData();
+      }, 2000);
     }
 
-    // ===================================================================
-    // CHỨC NĂNG TEST
-    // ===================================================================
-    function fillWithTestData() {
-      if (!allData.products || allData.products.length === 0) {
-        showStatus('Dữ liệu dropdown chưa sẵn sàng để test. Vui lòng chờ giây lát.', false);
-        return;
-      }
-
-      // Helper để lấy phần tử ngẫu nhiên
-      const getRandomElement = (arr) => arr[Math.floor(Math.random() * arr.length)];
-      
-      // Helper để set giá trị và kích hoạt sự kiện onchange
-      const setSelectValueAndTriggerChange = (id, value) => {
-        const select = document.getElementById(id);
-        if (select) {
-          select.value = value;
-          const event = new Event('change', { bubbles: true });
-          select.dispatchEvent(event);
-        }
-      };
-
-      // Lấy dữ liệu ngẫu nhiên
-      const randomProduct = getRandomElement(allData.products);
-      const randomFactory = getRandomElement(allData.factories);
-      const randomWarehouse = getRandomElement(allData.warehouses);
-      const randomQuantity = Math.floor(Math.random() * 500) + 1;
-
-      // Điền vào form
-      setSelectValueAndTriggerChange('tenSanPham', randomProduct.value);
-      document.getElementById('soLuong').value = randomQuantity;
-      setSelectValueAndTriggerChange('phanXuong', randomFactory);
-      setSelectValueAndTriggerChange('kho', randomWarehouse);
-      document.getElementById('ngaySanXuat').valueAsDate = new Date();
-      
-      showStatus('Đã điền dữ liệu test ngẫu nhiên!', true);
+    function populateFormForEdit(data) {
+        document.getElementById('loaiGiaoDich').value = data.loaiGiaoDich;
+        document.getElementById('index').value = data.sku;
+        document.getElementById('tenSanPham').value = data.tenSanPham;
+        document.getElementById('quyCach').value = data.quyCach;
+        document.getElementById('soLuong').value = data.soLuong;
+        document.getElementById('loSanXuat').value = data.loSanXuat;
+        document.getElementById('ngaySanXuat').value = data.ngaySanXuat;
+        document.getElementById('tinhTrangChatLuong').value = data.tinhTrangChatLuong;
+        document.getElementById('phanXuong').value = data.phanXuong;
+        document.getElementById('kho').value = data.kho;
+        document.getElementById('ghiChu').value = data.ghiChu;
+        
+        const submitBtn = document.getElementById('submitButton');
+        submitBtn.textContent = 'Cập Nhật';
+        submitBtn.classList.remove('btn-primary');
+        submitBtn.classList.add('btn-success');
+        showStatus('Dữ liệu đã được tải. Sẵn sàng để cập nhật.', 'success');
     }
-
-    // Hàm gọi xử lý bảng nhập liệu thủ công
-    function processManualTable() {
-      const processBtn = document.getElementById('processTableButton');
-      processBtn.disabled = true;
-      processBtn.textContent = 'Đang xử lý...';
-      showStatus('Bắt đầu xử lý dữ liệu từ bảng nhập thủ công...', true);
-
-      google.script.run
-        .withSuccessHandler(function(response) {
-          // Hàm processManualInputTable đã có alert riêng
-          processBtn.disabled = false;
-          processBtn.textContent = 'Xử lý Bảng Nhập Thủ Công';
-          // Không cần hiển thị thêm status vì đã có alert từ server
-          setTimeout(function() { document.getElementById('status').style.display = 'none'; }, 5000);
-        })
-        .withFailureHandler(function(err) {
-          showStatus('Lỗi xử lý bảng: ' + err.message, false);
-          processBtn.disabled = false;
-          processBtn.textContent = 'Xử lý Bảng Nhập Thủ Công';
-        })
-        .processManualInputTable();
-    }
+    
+    function suggestLoSanXuat() {}
+    function handleTransactionTypeChange() {}
+    function processManualTable() {}
+    function fillWithTestData() {}
   </script>
 </body>
 </html>

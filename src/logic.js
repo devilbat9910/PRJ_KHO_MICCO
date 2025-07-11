@@ -14,7 +14,6 @@ function showSidebar() {
 }
 
 function getDropdownData() {
-  // REFACTORED: This function now acts as a simple bridge to the service layer.
   try {
     return getMasterDataForForm();
   } catch (e) {
@@ -23,20 +22,16 @@ function getDropdownData() {
   }
 }
 
-// DEPRECATED: Hàm suggestLotNumber đã bị xóa khỏi logic.js để tránh lỗi đệ quy.
-// Giao diện sẽ gọi trực tiếp hàm trong service.gs.
-
 /**
- * Hàm cầu nối để lấy dữ liệu chi tiết của một lô hàng dựa trên INDEX.
+ * Hàm cầu nối để lấy dữ liệu giao dịch gốc từ LOG để sửa.
  * @param {string} indexValue - Mã INDEX (SKU) cần tra cứu.
- * @returns {object | null} - Dữ liệu chi tiết của lô hàng.
+ * @returns {object | null} - Dữ liệu chi tiết của giao dịch.
  */
-function getDataByIndex(indexValue) {
+function getDataForEdit(indexValue) {
   try {
-    return service_getDataByIndex(indexValue);
+    return service_getOriginalTransactionForEdit(indexValue);
   } catch (e) {
-    Logger.log(`Lỗi trong getDataByIndex(logic.js): ${e.stack}`);
-    // Ném lỗi lại để withFailureHandler của client có thể bắt được
+    Logger.log(`Lỗi trong getDataForEdit(logic.js): ${e.stack}`);
     throw new Error(`Không thể lấy dữ liệu cho INDEX "${indexValue}". Lỗi: ${e.message}`);
   }
 }
@@ -45,31 +40,24 @@ function getDataByIndex(indexValue) {
 // SECTION: XỬ LÝ GIAO DỊCH VÀ CẬP NHẬT KHO
 //================================================================
 
-// DEPRECATED: This function is moved to service.gs
-/*
-function generateSku(txObject) {
-    ...
-}
-*/
-
-
-// DEPRECATED: This function is now handled by service.gs and db.gs
-/*
-function recordTransaction(txObject) {
-  ...
-}
-*/
-
 /**
  * Xử lý dữ liệu trực tiếp từ Sidebar.
  * @param {object} formObject - Dữ liệu từ form.
+ * @param {boolean} isUpdate - Cờ xác định đây có phải là giao dịch cập nhật không.
+ * @param {object} originalTx - Dữ liệu giao dịch gốc (chỉ khi isUpdate = true).
  * @returns {object} - Kết quả thành công hoặc thất bại.
  */
-function processFormData(formObject) {
+function processFormData(formObject, isUpdate = false, originalTx = null) {
   try {
-    Logger.log("Bắt đầu service_processSingleTransaction...");
-    const result = service_processSingleTransaction(formObject);
-    Logger.log("Hoàn thành service_processSingleTransaction. Kết quả: " + JSON.stringify(result));
+    let result;
+    if (isUpdate) {
+      Logger.log("Bắt đầu service_updateTransaction...");
+      result = service_updateTransaction(formObject, originalTx);
+    } else {
+      Logger.log("Bắt đầu service_processSingleTransaction...");
+      result = service_processSingleTransaction(formObject);
+    }
+    Logger.log("Hoàn thành xử lý. Kết quả: " + JSON.stringify(result));
 
     if (result.success) {
       Logger.log("Bắt đầu updateDashboardRecentTransactions...");
@@ -79,25 +67,10 @@ function processFormData(formObject) {
     
     return result;
   } catch (e) {
-    // Ghi lại toàn bộ stack trace để gỡ lỗi chi tiết hơn
     Logger.log(`Lỗi trong processFormData (logic.js): ${e.stack}`);
     return { success: false, message: 'Lỗi: ' + e.message };
   }
 }
-
-// DEPRECATED: This entire function is replaced by the vw_tonkho sheet.
-/*
-function updateInventory(data) {
-  ...
-}
-*/
-
-// DEPRECATED: This function needs to be refactored to use the service layer.
-/*
-function processManualEntry() {
-  ...
-}
-*/
 
 //================================================================
 // SECTION: HIỂN THỊ DỮ LIỆU LÊN TRANG CHÍNH
@@ -115,20 +88,12 @@ function updateDashboardRecentTransactions() {
   }
   const transactions = service_getRecentTransactions();
 
-  // --- Thêm log chi tiết để gỡ lỗi ---
-  Logger.log("Dữ liệu transactions nhận được: " + JSON.stringify(transactions));
-  Logger.log(`Số lượng giao dịch: ${transactions.length}`);
-  if (transactions.length > 0) {
-    Logger.log(`Số cột của giao dịch đầu tiên: ${transactions[0].length}`);
-  }
-  // --- Kết thúc log ---
-
   const targetRange = mainSheet.getRange(RECENT_TRANSACTIONS_RANGE);
-  targetRange.offset(1, 0, targetRange.getNumRows() - 1).clearContent(); // Xóa dữ liệu cũ, giữ header
+  targetRange.offset(1, 0, targetRange.getNumRows() - 1).clearContent();
   if (transactions.length > 0 && transactions[0].length > 0) {
     mainSheet.getRange(4, 1, transactions.length, transactions[0].length).setValues(transactions);
   } else {
-    Logger.log("Không có giao dịch nào để hiển thị hoặc dữ liệu giao dịch không hợp lệ (0 cột).");
+    Logger.log("Không có giao dịch nào để hiển thị.");
   }
 }
 
@@ -152,65 +117,52 @@ function processManualInputTable() {
   const rowsToClear = [];
 
   inputData.forEach((row, index) => {
-    // Bỏ qua hàng trống
-    if (row.every(cell => cell === '')) {
-      return;
-    }
+    if (row.every(cell => cell === '')) return;
 
-    // Ánh xạ trực tiếp từ cột sang đối tượng, không cần diễn giải thông minh
     const transactionObject = {
-      // Cột A trong sheet là INDEX (SKU), bỏ qua khi đọc
       loaiGiaoDich: row[1],
       tenSanPham: row[2],
-      quyCach: row[3], // Sẽ được ghi đè bởi thông tin từ DANH MUC trong service layer
+      quyCach: row[3],
       loSanXuat: row[4],
       ngaySanXuat: row[5],
       tinhTrangChatLuong: row[6],
       soLuong: row[7],
-      phanXuong: row[8], // Sẽ được ghi đè bởi thông tin từ DANH MUC
+      phanXuong: row[8],
       kho: row[9],
       ghiChu: row[10]
     };
 
     try {
-      // Validation cơ bản ở tầng này
       if (!transactionObject.tenSanPham || !transactionObject.soLuong || !transactionObject.ngaySanXuat || !transactionObject.kho) {
-        throw new Error("Thiếu các trường bắt buộc: Tên Sản Phẩm, Số Lượng, Ngày Sản Xuất, Kho.");
+        throw new Error("Thiếu các trường bắt buộc.");
       }
       
       service_processSingleTransaction(transactionObject);
       processedCount++;
-      
-      // Đánh dấu hàng để xóa sau khi xử lý thành công
-      const relativeRow = index + 1;
-      rowsToClear.push(relativeRow);
+      rowsToClear.push(index + 1);
 
     } catch (e) {
-      const errorCell = dataRegion.getCell(index + 1, 1); // Cột A của dòng hiện tại
+      const errorCell = dataRegion.getCell(index + 1, 1);
       errorCell.setBackground("#f4cccc").setNote(`Lỗi: ${e.message}`);
     }
   });
 
-  // Xóa các hàng đã xử lý thành công
   if (processedCount > 0) {
-     // Xóa các hàng từ dưới lên để tránh thay đổi chỉ số
      rowsToClear.reverse().forEach(relativeRowIndex => {
         const absoluteRowIndex = inputTableRange.getRow() + relativeRowIndex;
         mainSheet.deleteRow(absoluteRowIndex);
      });
-     ui.alert(`Hoàn tất xử lý. ${processedCount} giao dịch đã được ghi nhận và xóa khỏi bảng nhập liệu.`);
+     ui.alert(`Hoàn tất xử lý. ${processedCount} giao dịch đã được ghi nhận.`);
   } else {
-     ui.alert("Không có giao dịch nào được xử lý. Vui lòng kiểm tra lại dữ liệu và các ghi chú lỗi (nếu có).");
+     ui.alert("Không có giao dịch nào được xử lý.");
   }
-
-  // Cập nhật lại bảng giao dịch gần nhất
   updateDashboardRecentTransactions();
 }
 
-// Các hàm báo cáo và chốt sổ cần được viết lại để tương thích với cấu trúc dữ liệu mới.
-/**
- * Hàm cầu nối để gọi dịch vụ tạo snapshot tồn kho hàng tháng.
- */
+//================================================================
+// SECTION: BÁO CÁO & CHỐT SỔ
+//================================================================
+
 function createMonthlySnapshot() {
   const ui = SpreadsheetApp.getUi();
   try {
@@ -221,9 +173,7 @@ function createMonthlySnapshot() {
     ui.alert(`Đã xảy ra lỗi: ${e.message}`);
   }
 }
-/**
- * Hàm cầu nối để gọi dịch vụ tạo báo cáo tồn kho.
- */
+
 function generateMonthlyReport() {
   const ui = SpreadsheetApp.getUi();
   try {
@@ -235,28 +185,17 @@ function generateMonthlyReport() {
   }
 }
 
-
-
-
 //================================================================
 // SECTION: TRA CỨU
 //================================================================
 
-/**
- * Hiển thị dialog tra cứu tồn kho.
- */
 function showTraCuuDialog() {
   const html = HtmlService.createHtmlOutputFromFile('TraCuu')
-    .setWidth(800)
-    .setHeight(600);
+    .setWidth(1200)
+    .setHeight(700);
   SpreadsheetApp.getUi().showModalDialog(html, '📊 Tra Cứu Tồn Kho');
 }
 
-/**
- * Hàm cầu nối để thực hiện tra cứu từ UI.
- * @param {object} searchCriteria - Đối tượng chứa các tiêu chí tìm kiếm.
- * @returns {object} - Kết quả tìm kiếm.
- */
 function logic_performSearch(searchCriteria) {
   try {
     return service_performSearch(searchCriteria);
@@ -264,4 +203,29 @@ function logic_performSearch(searchCriteria) {
     Logger.log(`Lỗi trong logic_performSearch: ${e.stack}`);
     return { success: false, message: e.message };
   }
+}
+
+function showTraCuuDialogForEdit() {
+  const t = HtmlService.createTemplateFromFile('TraCuu');
+  t.mode = 'edit';
+  const html = t.evaluate().setWidth(1200).setHeight(700);
+  SpreadsheetApp.getUi().showModalDialog(html, '📊 Chọn Giao Dịch Cần Sửa');
+}
+
+function passDataToOpener(data) {
+  const cache = CacheService.getUserCache();
+  const key = 'edit_data_' + Session.getEffectiveUser().getEmail();
+  cache.put(key, JSON.stringify(data), 60);
+  Logger.log("Đã lưu dữ liệu để sửa vào cache.");
+}
+
+function checkForEditData() {
+  const cache = CacheService.getUserCache();
+  const key = 'edit_data_' + Session.getEffectiveUser().getEmail();
+  const data = cache.get(key);
+  if (data) {
+    cache.remove(key);
+    return JSON.parse(data);
+  }
+  return null;
 }
