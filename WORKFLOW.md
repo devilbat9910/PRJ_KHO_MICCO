@@ -1,25 +1,43 @@
-# QUY TRÌNH LÀM VIỆC CHUẨN
+# Quy Trình Phát Triển Hướng Đặc Tả (Specification-Driven Workflow)
 
-Tài liệu này định nghĩa các bước cần thực hiện khi bắt đầu và kết thúc một phiên làm việc để đảm bảo tính nhất quán và toàn vẹn của dự án.
-
----
-
-## ✅ Checklist Khi Bắt Đầu Phiên Làm Việc Mới
-
-- [ ] **Đọc `dialog.md`:** Đọc lại file nhật ký để nắm bắt bối cảnh và trạng thái công việc của phiên làm việc trước đó.
-- [ ] **Xem lại Kế hoạch/Nhiệm vụ:** Kiểm tra các file kế hoạch (nếu có, ví dụ: `REFACTOR_PLAN.md`) hoặc các yêu cầu còn tồn đọng.
-- [ ] **Kiểm tra `git status`:** Chạy lệnh `git status` để đảm bảo không có thay đổi nào chưa được commit từ phiên trước.
-- [ ] **Xác nhận mục tiêu:** Thảo luận và thống nhất mục tiêu chính cần hoàn thành trong phiên làm việc hiện tại với người dùng.
+Tài liệu này định nghĩa quy trình làm việc chuẩn của dự án, kết hợp triết lý "Phát triển hướng Đặc tả" và các phương pháp làm việc hiệu quả với AI. Đây là tài liệu tham chiếu chính cho mọi phiên làm việc.
 
 ---
 
-## ✅ Checklist Khi Tổng Kết Phiên Làm Việc
+## Giai Đoạn 1: Xây Dựng và Hoàn Thiện Đặc Tả (Thực hiện một lần)
 
-- [ ] **Kiểm tra chức năng:** Đảm bảo các tính năng vừa phát triển hoặc sửa lỗi hoạt động đúng như yêu cầu cuối cùng.
-- [ ] **Đẩy lên Apps Script (`clasp push`):** Chạy lệnh `clasp push` để triển khai phiên bản mã nguồn mới nhất lên máy chủ Google.
-- [ ] **Đồng bộ lên GitHub (`git`):**
-    - [ ] Chạy `git add .` để thêm tất cả các thay đổi.
-    - [ ] Chạy `git commit -m "..."` với một tin nhắn mô tả rõ ràng các thay đổi.
-    - [ ] Chạy `git push` để đồng bộ hóa với kho chứa trên GitHub.
-- [ ] **Cập nhật Nhật ký (`dialog.md`):** Ghi lại tóm tắt chi tiết các công việc đã làm, các vấn đề đã gặp và các giải pháp đã thực hiện trong phiên.
-- [ ] **Cập nhật Tài liệu Bàn giao (`doc.js`):** Nếu có thay đổi lớn về quy trình hoặc nghiệp vụ, cập nhật lại hàm `getDocumentationContent()` trong `doc.js` và thông báo cho người dùng.
+Mục tiêu của giai đoạn này là xây dựng một "bộ não" cho dự án - một tài liệu đặc tả toàn diện, là nguồn sự thật duy nhất.
+
+1.  **Tạo Bản Nháp Đặc Tả (`SPECIFICATION.md`):** AI sẽ phân tích toàn bộ codebase và các tài liệu hiện có để tạo ra một bản nháp chi tiết của file `SPECIFICATION.md`.
+2.  **Phê Duyệt và Tinh Chỉnh:** Người dùng (chủ dự án) sẽ xem xét, chỉnh sửa và bổ sung vào bản nháp để đảm bảo nó phản ánh chính xác 100% ý định và yêu cầu.
+3.  **Đặt `SPECIFICATION.md` làm Nguồn Sự Thật:** Một khi đã được phê duyệt, file `SPECIFICATION.md` sẽ trở thành tài liệu tham chiếu cốt lõi. Mọi thay đổi, phát triển, hay kiểm thử sau này đều phải tuân thủ và đối chiếu với tài liệu này.
+
+---
+
+## Giai Đoạn 2: Quy Trình Phát Triển Tính Năng (Lặp lại)
+
+Quy trình này được lặp lại cho mỗi tính năng mới hoặc thay đổi yêu cầu.
+
+1.  **Cập Nhật Đặc Tả:** Bất kỳ yêu cầu mới nào cũng phải bắt đầu bằng việc **cập nhật file `SPECIFICATION.md` trước tiên**.
+    -   **Hành động:** Cùng với AI, cập nhật các mục liên quan trong `SPECIFICATION.md` (ví dụ: thêm một yêu cầu mới vào bảng "Yêu Cầu Chức Năng", hoặc điều chỉnh "Cấu Trúc Sheet").
+
+2.  **Lập Kế Hoạch (Plan Mode):** Với đặc tả đã được cập nhật, yêu cầu AI vào "Plan Mode" để lập kế hoạch triển khai.
+    -   **Hành động:** AI sẽ phân tích yêu cầu trong đặc tả và trình bày một kế hoạch chi tiết: các file cần thay đổi, các hàm cần viết, và các rủi ro tiềm ẩn.
+
+3.  **Thực Thi và Kiểm Thử:** Sau khi kế hoạch được phê duyệt, AI sẽ tiến hành viết code.
+    -   **Hành động:** AI sẽ viết hoặc sửa đổi code, luôn đảm bảo tuân thủ các quy tắc trong `SPECIFICATION.md`. Sau khi hoàn tất, cần thực hiện kiểm thử (thủ công hoặc tự động) dựa trên "Tiêu Chí Thành Công" đã được định nghĩa.
+
+4.  **Đồng Bộ Hóa:**
+    -   **`clasp push`**: Đẩy các thay đổi mã nguồn lên Google Apps Script.
+    -   **`git push`**: Đẩy toàn bộ các thay đổi (cả code và `SPECIFICATION.md`) lên kho chứa GitHub.
+    -   **`dialog.md`**: Cập nhật nhật ký làm việc.
+
+---
+
+## Phụ Lục: Các Mẹo Tương Tác Hiệu Quả (Workflow Hacks)
+
+-   **Plan Mode:** Yêu cầu AI lập kế hoạch trước cho các tác vụ phức tạp.
+-   **Phạm vi (`@`):** Dùng `@` + tên file để AI tập trung vào các file cụ thể.
+-   **Bộ nhớ (`#`):** Dùng `#` để thêm các quy tắc tạm thời vào bộ nhớ của AI.
+-   **Extended Thinking:** Yêu cầu AI "suy nghĩ sâu hơn" khi gặp vấn đề khó.
+-   **Cung cấp hình ảnh:** Kéo thả ảnh vào chat để mô tả các yêu cầu về giao diện.
