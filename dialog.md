@@ -508,3 +508,24 @@ Toàn bộ các chức năng cốt lõi của hệ thống đã được hoàn t
 
 ### Tình Trạng Cuối Cùng
 Quá trình kiểm tra sức khỏe hệ thống đã hoàn tất. Các lỗi nghiêm trọng và nợ kỹ thuật được phát hiện đã được khắc phục. Hệ thống hiện đã ổn định và đầy đủ chức năng hơn. Phiên làm việc kết thúc.
+---
+# Nhật Ký Phiên Làm Việc - 14/07/2025: Tích Hợp Quy Trình Hướng Đặc Tả
+
+### Giai Đoạn 31: Phân Tích và Lập Kế Hoạch
+
+1.  **Mục tiêu:** Phân tích tài liệu "8 worklflow và SPECTIFICATION.md" và đề xuất kế hoạch tích hợp vào dự án.
+2.  **Hành động:**
+    *   Đã đọc và phân tích sâu về hai khái niệm chính: "8 Mẹo Workflow" và "Phát triển hướng Đặc tả".
+    *   Đã đề xuất một kế hoạch 3 giai đoạn để triển khai các phương pháp mới, được người dùng phê duyệt.
+
+### Giai Đoạn 32: Triển Khai Quy Trình Mới
+
+1.  **Mục tiêu:** Thực hiện kế hoạch đã được phê duyệt để tái cấu trúc quy trình làm việc của dự án.
+2.  **Hành động & Triển khai:**
+    *   **Tạo Đặc Tả (`SPECIFICATION.md`):** Đã phân tích toàn bộ codebase để tạo ra một file đặc tả kỹ thuật chi tiết, đóng vai trò là "bộ não" và "nguồn sự thật" mới của dự án. File này đặc tả chi tiết cả cấu trúc của từng Google Sheet.
+    *   **Cập nhật Quy trình (`WORKFLOW.md`):** Đã viết lại hoàn toàn file `WORKFLOW.md` để phản ánh triết lý "Phát triển hướng Đặc tả", đặt `SPECIFICATION.md` làm trung tâm của mọi hoạt động.
+    *   **Lưu trữ (`archive`):** Đã di chuyển file `PLANNING.md` cũ vào thư mục `archive` để tránh nhầm lẫn.
+    *   **Đồng bộ hóa:** Toàn bộ các thay đổi về cấu trúc và tài liệu đã được lưu trữ an toàn trên kho chứa GitHub.
+
+### Tình Trạng Cuối Cùng
+Dự án đã được nâng cấp lên một quy trình làm việc mới, chuyên nghiệp và rõ ràng hơn. Hệ thống hiện đã sẵn sàng để hoạt động theo phương pháp "Phát triển hướng Đặc tả", hứa hẹn mang lại sự nhất quán và hiệu quả cao hơn trong tương lai. Phiên làm việc kết thúc.
