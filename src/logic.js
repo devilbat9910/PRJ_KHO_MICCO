@@ -8,11 +8,6 @@
 // SECTION: HIỂN THỊ VÀ LẤY DỮ LIỆU FORM
 //================================================================
 
-function showSidebar() {
-  const html = HtmlService.createTemplateFromFile('FormNhapLieu').evaluate().setTitle('📝 Form Nhập/Xuất Kho');
-  SpreadsheetApp.getUi().showSidebar(html);
-}
-
 function getDropdownData() {
   try {
     return getMasterDataForForm();
@@ -77,86 +72,53 @@ function processFormData(formObject, isUpdate = false, originalTx = null) {
 //================================================================
 
 /**
- * Cập nhật bảng "10 giao dịch gần nhất" trên Trang Chính.
+ * Cập nhật bảng "10 giao dịch gần nhất" trên sheet INPUT.
  */
 function updateDashboardRecentTransactions() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const mainSheet = ss.getSheetByName(MAIN_SHEET_NAME);
-  if (!mainSheet) {
-    Logger.log(`Không tìm thấy sheet "${MAIN_SHEET_NAME}" để cập nhật.`);
+  // SỬA LỖI: Sử dụng trực tiếp Vùng được đặt tên 'INPUT_RECENT'
+  const targetRange = ss.getRangeByName('INPUT_RECENT');
+
+  if (!targetRange) {
+    Logger.log('Lỗi: Không tìm thấy Vùng được đặt tên "INPUT_RECENT". Vui lòng tạo nó.');
     return;
   }
-  const transactions = service_getRecentTransactions();
-
-  const targetRange = mainSheet.getRange(RECENT_TRANSACTIONS_RANGE);
-  targetRange.offset(1, 0, targetRange.getNumRows() - 1).clearContent();
-  if (transactions.length > 0 && transactions[0].length > 0) {
-    mainSheet.getRange(4, 1, transactions.length, transactions[0].length).setValues(transactions);
-  } else {
-    Logger.log("Không có giao dịch nào để hiển thị.");
-  }
-}
-
-/**
- * Xử lý dữ liệu từ bảng NHẬP THỦ CÔNG.
- */
-function processManualInputTable() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const ui = SpreadsheetApp.getUi();
-  const mainSheet = ss.getSheetByName(MAIN_SHEET_NAME);
-  if (!mainSheet) {
-    ui.alert("Không tìm thấy Trang Chính.");
-    return;
-  }
-
-  const inputTableRange = mainSheet.getRange(MANUAL_INPUT_RANGE);
-  const dataRegion = inputTableRange.offset(1, 0, inputTableRange.getNumRows() - 1);
-  const inputData = dataRegion.getValues();
   
-  let processedCount = 0;
-  const rowsToClear = [];
+  // Lấy dữ liệu đã được định dạng
+  const recentLogsData = db_getRecentLogs(11); // Lấy 11 dòng gần nhất
 
-  inputData.forEach((row, index) => {
-    if (row.every(cell => cell === '')) return;
-
-    const transactionObject = {
-      loaiGiaoDich: row[1],
-      tenSanPham: row[2],
-      quyCach: row[3],
-      loSanXuat: row[4],
-      ngaySanXuat: row[5],
-      tinhTrangChatLuong: row[6],
-      soLuong: row[7],
-      phanXuong: row[8],
-      kho: row[9],
-      ghiChu: row[10]
-    };
-
-    try {
-      if (!transactionObject.tenSanPham || !transactionObject.soLuong || !transactionObject.ngaySanXuat || !transactionObject.kho) {
-        throw new Error("Thiếu các trường bắt buộc.");
-      }
-      
-      service_processSingleTransaction(transactionObject);
-      processedCount++;
-      rowsToClear.push(index + 1);
-
-    } catch (e) {
-      const errorCell = dataRegion.getCell(index + 1, 1);
-      errorCell.setBackground("#f4cccc").setNote(`Lỗi: ${e.message}`);
-    }
-  });
-
-  if (processedCount > 0) {
-     rowsToClear.reverse().forEach(relativeRowIndex => {
-        const absoluteRowIndex = inputTableRange.getRow() + relativeRowIndex;
-        mainSheet.deleteRow(absoluteRowIndex);
-     });
-     ui.alert(`Hoàn tất xử lý. ${processedCount} giao dịch đã được ghi nhận.`);
-  } else {
-     ui.alert("Không có giao dịch nào được xử lý.");
+  // Ánh xạ dữ liệu từ 18 cột của LOG sang 11 cột của INPUT_RECENT
+  const transactions = recentLogsData.map(logRow => {
+    return [
+      logRow[16],       // Nhập/xuất
+      logRow[3],        // Tên sản phẩm -> Viết tắt
+      logRow[4],        // Quy cách
+      logRow[5],        // Số lượng
+      logRow[6],        // Ngày sản xuất
+      logRow[7],        // Phân xưởng -> Mã phân xưởng (đã được sửa khi ghi log)
+      logRow[10],       // Tên kho -> Mã kho
+      logRow[14],       // Tình trạng chất lượng
+      logRow[17],       // Ghi chú
+      logRow[0],        // Mã index
+      logRow[8]         // Mã lô
+    ];
+  }).reverse(); // Đảo ngược để giao dịch mới nhất ở trên cùng
+  
+  // Xóa dữ liệu cũ (để lại dòng tiêu đề).
+  // KIỂM TRA PHÒNG VỆ: Chỉ xóa nếu có nhiều hơn 1 dòng (có dữ liệu cũ).
+  if (targetRange.getNumRows() > 1) {
+    const dataRange = targetRange.offset(1, 0, targetRange.getNumRows() - 1);
+    dataRange.clearContent();
   }
-  updateDashboardRecentTransactions();
+
+  if (transactions && transactions.length > 0) {
+    // Ghi dữ liệu mới vào vùng, bắt đầu từ dòng thứ 2 (dưới tiêu đề).
+    const destinationRange = targetRange.offset(1, 0, transactions.length, transactions[0].length);
+    destinationRange.setValues(transactions);
+    Logger.log(`Đã cập nhật ${transactions.length} giao dịch gần đây vào vùng INPUT_RECENT.`);
+  } else {
+    Logger.log("Không có giao dịch gần đây nào để hiển thị.");
+  }
 }
 
 //================================================================
@@ -189,18 +151,20 @@ function generateMonthlyReport() {
 // SECTION: TRA CỨU
 //================================================================
 
-function showTraCuuDialog() {
-  const html = HtmlService.createHtmlOutputFromFile('TraCuu')
-    .setWidth(1200)
-    .setHeight(700);
-  SpreadsheetApp.getUi().showModalDialog(html, '📊 Tra Cứu Tồn Kho');
-}
-
 function logic_performSearch(searchCriteria) {
   try {
     return service_performSearch(searchCriteria);
   } catch (e) {
     Logger.log(`Lỗi trong logic_performSearch: ${e.stack}`);
+    return { success: false, message: e.message };
+  }
+}
+
+function logic_getSkuDetails(sku) {
+  try {
+    return service_getSkuDetails(sku);
+  } catch (e) {
+    Logger.log(`Lỗi trong logic_getSkuDetails: ${e.stack}`);
     return { success: false, message: e.message };
   }
 }
@@ -211,6 +175,7 @@ function showTraCuuDialogForEdit() {
   const html = t.evaluate().setWidth(1200).setHeight(700);
   SpreadsheetApp.getUi().showModalDialog(html, '📊 Chọn Giao Dịch Cần Sửa');
 }
+
 
 function passDataToOpener(data) {
   const cache = CacheService.getUserCache();

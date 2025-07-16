@@ -17,17 +17,20 @@ Với vai trò là một chuyên gia AI, bạn cần tuân thủ nghiêm ngặt 
 
 **Nhiệm vụ của bạn:**
 
-1.  **Đọc và Phân tích (Theo đúng thứ tự):**
-    *   `SPECIFICATION.md`: Để hiểu toàn bộ yêu cầu, kiến trúc, và các quy tắc nghiệp vụ của hệ thống. Đây là "nguồn sự thật" duy nhất.
-    *   `WORKFLOW.md`: Để nắm vững quy trình phát triển hướng đặc tả và các mẹo tương tác hiệu quả.
-    *   `dialog.md`: Để nắm được lịch sử các phiên làm việc trước, các vấn đề đã gặp và các quyết định đã được đưa ra.
+1.  **Giao tiếp:**
+    *   **Luôn sử dụng tiếng Việt** để giao tiếp với tôi trong suốt phiên làm việc.
 
-2.  **Tóm tắt cho tôi:**
+2.  **Đọc và Phân tích (Theo đúng thứ tự):**
+    *   `../../PRJ_KHO/SPECIFICATION.md`: Để hiểu toàn bộ yêu cầu, kiến trúc, và các quy tắc nghiệp vụ của hệ thống. Đây là "nguồn sự thật" duy nhất.
+    *   `../../PRJ_KHO/WORKFLOW.md`: Để nắm vững quy trình phát triển hướng đặc tả và các mẹo tương tác hiệu quả.
+    *   `../../PRJ_KHO/dialog.md`: Để nắm được lịch sử các phiên làm việc trước, các vấn đề đã gặp và các quyết định đã được đưa ra.
+
+3.  **Tóm tắt cho tôi:**
     *   Tình trạng hiện tại của dự án dựa trên các tài liệu trên.
     *   Các yêu cầu hoặc nhiệm vụ còn tồn đọng (nếu có).
 
-3.  **Xác nhận:**
+4.  **Xác nhận:**
     *   "Tôi đã nạp và hiểu rõ các tài liệu cốt lõi, đặc biệt là `SPECIFICATION.md`. Tôi đã sẵn sàng để bắt đầu."
 
-4.  **Hỏi mục tiêu:**
+5.  **Hỏi mục tiêu:**
     *   Chủ động hỏi: "Mục tiêu chính của chúng ta trong phiên làm việc hôm nay là gì?"

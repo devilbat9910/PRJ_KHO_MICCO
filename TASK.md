@@ -50,3 +50,30 @@ This file tracks the major features and refactoring efforts completed for the pr
 ### Current Status
 
 The system is feature-complete based on all requests to date. All core functionalities including data entry, reporting, dashboard filtering, and secure data updates are implemented and stable.
+
+---
+
+### Phase 5: Logic and UI Refinement (Completed)
+
+- [x] **Fix `INDEX` Generation Logic:** The `generateSku` and `suggestLotNumber` functions were rewritten to correctly handle lot codes (including `{PX}` placeholder) and UTC dates, resolving critical regression bugs.
+- [x] **Implement Dynamic Warehouse Filtering:** The `service_getSkuDetails` and `FormNhapLieu.html` were updated to correctly filter the warehouse dropdown based on the available stock for the entered `INDEX`.
+
+---
+
+### Phase 6: Sheet-Based Input & UI Refactoring (Completed on 2025-07-16)
+
+- [x] **Sheet-Based Input:** Developed a new primary workflow allowing users to input transactions directly into the `INPUT` sheet.
+    - [x] Implemented robust logic to handle 'Nhập', 'Xuất', and 'Điều chuyển' transactions from the sheet.
+    - [x] Added business rule for 'Điều chuyển' to use the 'Ghi Chú' column for the destination warehouse.
+    - [x] Implemented automated features: auto-creation of `INDEX`, conditional creation of `Lô Sản Xuất`, and auto-population of the current date.
+- [x] **Batch Processing:** Optimized the sheet processing function to handle up to 21 transactions in a single batch for improved performance.
+- [x] **UI Refactoring:**
+    - [x] Created a new `UI.gs` file to centralize all functions called from the user interface (menus, buttons).
+    - [x] Resolved the "script function not found" error by moving UI-callable functions (`showTraCuuDialog`, `processManualInputTable`, etc.) into the new `.gs` file.
+- [x] **Documentation:** Updated `SPECIFICATION.md` to reflect the new sheet-based workflow and its associated business rules.
+
+---
+
+## Unresolved Issues
+
+- [ ] **Lỗi Nhập Liệu Từ Sheet `INPUT` (16/07/2025):** Hệ thống không xử lý được giao dịch và báo lỗi `Không tìm thấy sản phẩm: "NTLT"`. Cần điều tra sự không khớp dữ liệu giữa `INPUT` và `DANH MUC` (cụ thể là `Bảng_Sản phẩm`).

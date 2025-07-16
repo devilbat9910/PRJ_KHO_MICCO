@@ -13,10 +13,11 @@ const REPORT_SHEET_NAME = 'BaoCaoTonKho';
 const MAIN_SHEET_NAME = 'Trang Chính';
 const VIEW_INVENTORY_SHEET_NAME = 'vw_tonkho'; // Tên sheet View
 const LOG_SHEET_NAME = 'LOG_GIAO_DICH_tbl';
+const INPUT_SHEET_NAME = 'INPUT';
 
-// --- Tọa độ bảng trên Trang Chính ---
-const RECENT_TRANSACTIONS_RANGE = 'A3:K14'; // Header ở dòng 3, 11 dòng data (4-14)
-const MANUAL_INPUT_RANGE = 'A19:K30';      // Header ở dòng 19, 11 dòng data (20-30)
+// --- Tọa độ bảng trên Trang Chính & Sheet INPUT ---
+const RECENT_TRANSACTIONS_RANGE = 'A27:K38'; // Header ở dòng 27, 11 dòng data (28-38) trên sheet INPUT
+const MANUAL_INPUT_RANGE = 'A2:K23';      // Vùng nhập liệu thủ công trên sheet INPUT. Header ở dòng 2.
 
 /**
  * Tạo menu tùy chỉnh khi mở file Google Sheets.
@@ -28,6 +29,10 @@ function onOpen() {
   menu.addItem('Mở Form Nhập Liệu', 'showSidebar');
   menu.addItem('Mở Dialog Tra Cứu', 'showTraCuuDialog');
   menu.addSeparator();
+
+  const utilitiesMenu = ui.createMenu('Tiện Ích');
+  utilitiesMenu.addItem('Xử lý dữ liệu từ sheet INPUT', 'processInputSheet');
+  menu.addSubMenu(utilitiesMenu);
   
   const reportMenu = ui.createMenu('Báo Cáo & Chốt Sổ');
   reportMenu.addItem('Tạo Báo Cáo Tồn Kho Tháng', 'generateMonthlyReport');
@@ -321,3 +326,4 @@ function protectDataSheets() {
     ui.alert('Không tìm thấy sheet nào để bảo vệ.');
   }
 }
+

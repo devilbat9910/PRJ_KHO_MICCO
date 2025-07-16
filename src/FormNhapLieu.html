@@ -11,10 +11,10 @@
   </style>
 </head>
 <body>
-  <div id="inputForm">
+  <form id="inputForm">
     <div class="form-group">
       <label for="loaiGiaoDich">Loại Giao Dịch</label>
-      <select class="form-control" id="loaiGiaoDich">
+      <select class="form-control" id="loaiGiaoDich" onchange="handleTransactionTypeChange()">
         <option value="Nhập">Nhập</option>
         <option value="Xuất">Xuất</option>
         <option value="Điều chuyển">Điều chuyển</option>
@@ -22,7 +22,7 @@
     </div>
     <div class="form-group">
       <label for="index">INDEX (SKU)</label>
-      <input type="text" class="form-control" id="index" readonly>
+      <input type="text" class="form-control" id="index" readonly onblur="fetchSkuDetails()">
     </div>
     <div class="form-group">
       <label for="tenSanPham">Tên Sản Phẩm</label>
@@ -70,13 +70,13 @@
     </div>
     
     <div class="d-flex justify-content-between">
-      <button class="btn btn-primary" style="flex-grow: 1; margin-right: 5px;" id="submitButton" onclick="submitForm()">Ghi Lại</button>
-      <button class="btn btn-warning" style="flex-grow: 1; margin-left: 5px; margin-right: 5px;" id="editButton" onclick="loadForEdit()">Tra Cứu & Sửa</button>
-      <button class="btn btn-secondary" style="flex-grow: 1; margin-left: 5px; margin-right: 5px;" id="processTableButton" onclick="processManualTable()">Xử lý Bảng</button>
+      <button type="button" class="btn btn-primary" style="flex-grow: 1; margin-right: 5px;" id="submitButton" onclick="submitForm()">Ghi Lại</button>
+      <button type="button" class="btn btn-warning" style="flex-grow: 1; margin-left: 5px; margin-right: 5px;" id="editButton" onclick="loadForEdit()">Tra Cứu & Sửa</button>
+      <button type="button" class="btn btn-secondary" style="flex-grow: 1; margin-left: 5px; margin-right: 5px;" id="processTableButton" onclick="processManualTable()">Xử lý Bảng</button>
       <button type="button" class="btn btn-info" style="flex-grow: 1; margin-left: 5px;" onclick="fillWithTestData()">TEST</button>
     </div>
     <div id="status" class="alert mt-3"></div>
-  </div>
+  </form>
 
   <script>
     let allData = {};
@@ -101,6 +101,8 @@
         submitBtn.textContent = 'Ghi Lại';
         submitBtn.classList.remove('btn-success');
         submitBtn.classList.add('btn-primary');
+        
+        handleTransactionTypeChange(); // Set initial form state
     }
 
     function populateDropdowns(data) {
@@ -221,8 +223,91 @@
         showStatus('Dữ liệu đã được tải. Sẵn sàng để cập nhật.', 'success');
     }
     
-    function suggestLoSanXuat() {}
-    function handleTransactionTypeChange() {}
+    function suggestLoSanXuat() {
+      const productName = document.getElementById('tenSanPham').value;
+      const factory = document.getElementById('phanXuong').value;
+      const dateStr = document.getElementById('ngaySanXuat').value;
+
+      if (productName && factory && dateStr) {
+        google.script.run
+          .withSuccessHandler(function(suggestedLot) {
+            if (suggestedLot) {
+              document.getElementById('loSanXuat').value = suggestedLot;
+            }
+          })
+          .withFailureHandler(function(err) {
+            console.error("Error suggesting lot number: " + err.message);
+          })
+          .suggestLotNumber(productName, factory, dateStr);
+      }
+    }
+
+    function handleTransactionTypeChange() {
+      const txType = document.getElementById('loaiGiaoDich').value;
+      const indexInput = document.getElementById('index');
+      const khoDiGroup = document.getElementById('kho-di-group');
+      const khoLabel = document.getElementById('kho-label');
+      const fieldsToToggle = ['tenSanPham', 'quyCach', 'loSanXuat', 'ngaySanXuat', 'phanXuong', 'tinhTrangChatLuong'];
+
+      if (txType === 'Nhập') {
+        indexInput.readOnly = true;
+        indexInput.value = ''; // Clear index on import
+        khoDiGroup.style.display = 'none';
+        khoLabel.textContent = 'Kho Nhận';
+        fieldsToToggle.forEach(id => document.getElementById(id).disabled = false);
+      } else { // Xuất or Điều chuyển
+        indexInput.readOnly = false;
+        fieldsToToggle.forEach(id => document.getElementById(id).disabled = true);
+        
+        if (txType === 'Điều chuyển') {
+          khoDiGroup.style.display = 'block';
+          khoLabel.textContent = 'Kho Đến';
+        } else { // Xuất
+          khoDiGroup.style.display = 'none';
+          khoLabel.textContent = 'Kho Xuất';
+        }
+      }
+    }
+
+    function fetchSkuDetails() {
+      const indexInput = document.getElementById('index');
+      const sku = indexInput.value.trim();
+      if (!sku || indexInput.readOnly) return;
+      
+      showStatus('Đang tìm thông tin INDEX...', 'info');
+      google.script.run
+        .withSuccessHandler(function(response) {
+          if (response.success) {
+            const data = response.data;
+            
+            document.getElementById('quyCach').value = data.Quy_Cách || '';
+            document.getElementById('loSanXuat').value = data.Lô_SX || '';
+            document.getElementById('ngaySanXuat').value = data.Ngày_SX || '';
+            document.getElementById('tenSanPham').value = data.tenSanPham_fullName || '';
+            document.getElementById('tinhTrangChatLuong').value = data.QC_Status || 'Đạt';
+            document.getElementById('phanXuong').value = data.ĐV_SX || '';
+
+            populateSelect('kho', response.validWarehouses || []);
+            populateSelect('khoDi', response.validWarehouses || []);
+
+            if (response.validWarehouses && response.validWarehouses.length > 0) {
+                showStatus('Đã tìm thấy và điền thông tin. Vui lòng chọn kho và số lượng.', 'success');
+            } else {
+                showStatus('Đã tìm thấy INDEX, nhưng lô hàng này đã hết tồn kho.', 'warning');
+            }
+          } else {
+            showStatus(response.message, false);
+            // Reset warehouse dropdowns on failure
+            populateSelect('kho', allData.warehouses || []);
+            populateSelect('khoDi', allData.warehouses || []);
+          }
+        })
+        .withFailureHandler(function(err) {
+          showStatus('Lỗi khi lấy thông tin INDEX: ' + err.message, false);
+        })
+        .service_getSkuDetails(sku);
+    }
+
     function processManualTable() {}
     function fillWithTestData() {}
   </script>

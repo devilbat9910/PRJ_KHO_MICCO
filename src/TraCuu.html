@@ -75,20 +75,35 @@
 
     function displayResults(response) {
       const searchBtn = document.getElementById('searchButton');
-      const tableBody = document.getElementById('resultsTable').querySelector('tbody');
+      const resultsTable = document.getElementById('resultsTable');
+      const tableHead = resultsTable.querySelector('thead');
+      const tableBody = resultsTable.querySelector('tbody');
+      
+      // Xóa kết quả cũ
+      tableHead.innerHTML = '';
       tableBody.innerHTML = '';
 
       if (response.success && response.data.length > 0) {
-        // simplified display for log search
+        // Tạo hàng tiêu đề
+        let headerHtml = '<tr>';
+        response.headers.forEach(header => headerHtml += `<th>${header}</th>`);
+        headerHtml += '</tr>';
+        tableHead.innerHTML = headerHtml;
+
+        // Tạo các hàng dữ liệu
         response.data.forEach(rowData => {
-          let rowHtml = `<tr style="cursor: pointer;" onclick="handleRowClick('${rowData[1]}')">`; // rowData[1] is the SKU
-          rowData.forEach(cell => rowHtml += `<td>${cell}</td>`);
+          // Giả sử cột thứ 2 (index 1) là INDEX (SKU)
+          const indexValue = rowData[1] ? `'${rowData[1]}'` : "''";
+          let rowHtml = `<tr style="cursor: pointer;" onclick="handleRowClick(${indexValue})">`;
+          rowData.forEach(cell => rowHtml += `<td>${cell === null || cell === undefined ? '' : cell}</td>`);
           rowHtml += '</tr>';
           tableBody.innerHTML += rowHtml;
         });
-        document.getElementById('resultsTable').style.display = 'table';
-        showStatus(`Tìm thấy ${response.data.length} kết quả. Nhấp vào dòng để chọn.`, 'success');
+        
+        resultsTable.style.display = 'table';
+        showStatus(`Tìm thấy ${response.data.length} kết quả. ${isEditMode ? 'Nhấp vào dòng để chọn.' : ''}`, 'success');
       } else {
+        resultsTable.style.display = 'none';
         showStatus(response.message || 'Không tìm thấy giao dịch.', 'warning');
       }
       searchBtn.disabled = false;
