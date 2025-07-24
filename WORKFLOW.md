@@ -163,3 +163,9 @@ Việc này đảm bảo tính toàn vẹn của dự án và giúp cho việc t
     - Tái cấu trúc hàm `db_findWarehouse` trong `db.js` để tăng tính mạnh mẽ.
     - Nâng cấp hàm `normalizeObjectKeys` trong `service.js` để xử lý key không phân biệt chữ hoa chữ thường và tự động loại bỏ khoảng trắng.
 4.  **Tài liệu hóa:** Toàn bộ quá trình được ghi lại trong `REFACTOR_PLAN.md`. Tệp đặc tả `specification.md` được thêm vào dự án.
+
+---
+**Quy trình Gỡ lỗi Giao dịch 'Xuất' (24/07/2025):**
+1.  **Sự cố:** Giao dịch 'Xuất' thất bại với lỗi xác thực không rõ ràng.
+2.  **Phân tích:** Phát hiện ra rằng logic phía client trong `UI.js` đã đọc sai cột dữ liệu từ sheet. Cụ thể, nó đã lấy giá trị từ cột 'Tên kho' thay vì cột 'Mã kho' như yêu cầu của lớp dịch vụ.
+3.  **Giải pháp:** Sửa đổi mã trong `UI.js` để đảm bảo nó tham chiếu chính xác đến cột 'Mã kho' khi thu thập dữ liệu giao dịch 'Xuất'. Điều này đảm bảo dữ liệu được truyền đi là chính xác, giải quyết triệt để lỗi xác thực.

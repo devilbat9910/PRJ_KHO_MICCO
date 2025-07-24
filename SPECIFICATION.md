@@ -75,8 +75,6 @@ Hệ thống tuân thủ nghiêm ngặt **kiến trúc 3 tầng (3-Layer Archite
 | **REQ-001** | Nhập/Xuất/Điều chuyển | Người dùng nhập liệu trực tiếp vào các dòng trong vùng `INPUT_RANGE` trên sheet `INPUT` và thực thi thông qua menu. | - **Nhập:** `Mã index` và `Mã lô` được tự động tạo nếu bỏ trống. <br>- **Xuất/Điều chuyển:** Logic được xử lý dựa trên các quy tắc nghiệp vụ. <br>- Dữ liệu được làm giàu từ các bảng danh mục. <br>- Giao dịch thành công được ghi vào `LOG` và `DATABASE`, sau đó dòng nhập liệu được tự động xóa. |
 | **REQ-002** | Cập nhật Giao dịch (Không còn dùng) | Chức năng sửa trực tiếp giao dịch cũ đã được loại bỏ để ủng hộ một kiến trúc dữ liệu vững chắc hơn (LOG + DATABASE). | Việc điều chỉnh được thực hiện bằng cách tạo một giao dịch mới để bù trừ hoặc thay thế. |
 | **REQ-003** | Tra cứu Giao dịch (Thay thế) | Chức năng này được thay thế hoàn toàn bởi **Tra Cứu Động (REQ-006)**. | Người dùng tìm kiếm trực tiếp trên sheet `INPUT` để có kết quả tức thì. |
-| **REQ-004** | Báo cáo Tháng | Tạo báo cáo tổng hợp tồn kho theo sản phẩm. | Sheet `BaoCaoTonKho` được tạo/cập nhật với dữ liệu chính xác. |
-| **REQ-005** | Chốt sổ Tháng | Tạo một bản sao tĩnh của tồn kho cuối tháng. | Một sheet mới `Snapshot_MM-yyyy` được tạo và dữ liệu không chứa công thức. |
 | **REQ-006** | **Tra Cứu Động** | Người dùng có thể tìm kiếm linh hoạt ngay trên sheet `INPUT` mà không cần form. | - Người dùng nhập tiêu chí vào vùng `L5:N5`. <br>- Nhấp vào nút tra cứu (ảnh). <br>- Hệ thống trả về danh sách kết quả phù hợp bên dưới, bắt đầu từ `O3`. <br>- Mỗi hàng kết quả có một checkbox ở cột `O`. |
 | **REQ-007** | Thiết lập Công cụ Chọn ngày | Chạy hàm `setupDateFormINPUT()` từ trình chỉnh sửa Apps Script để áp dụng quy tắc xác thực ngày tháng cho vùng `E3:E23` trên sheet `INPUT`. | Khi nhấp vào các ô trong vùng `E3:E23` trên sheet `INPUT`, một công cụ chọn lịch sẽ hiện ra. |
 
@@ -84,6 +82,10 @@ Hệ thống tuân thủ nghiêm ngặt **kiến trúc 3 tầng (3-Layer Archite
 
 ## 5. Change Log
 
+- **24/07/2025 (v2.3):**
+    - **Sửa lỗi:** Khắc phục lỗi xác thực giao dịch 'Xuất'.
+        - **Vấn đề:** Lỗi xác thực giao dịch 'Xuất' do đọc sai tên cột trong UI.
+        - **Giải pháp:** Sửa logic trong `UI.js` để đọc đúng cột 'Mã kho' thay vì 'Tên kho', đảm bảo dữ liệu được truyền đến lớp dịch vụ một cách chính xác.
 - **21/07/2025 (v2.2):**
     - **Tái cấu trúc:** Loại bỏ hoàn toàn hàm `setupInitialStructure` đã lỗi thời và gây ra lỗi.
     - **Thêm Chức năng Tiện ích:** Tạo hàm chuyên dụng `setupDateFormINPUT()` để chỉ áp dụng công cụ chọn ngày cho vùng `E3:E23` trên sheet `INPUT`, giúp việc thiết lập an toàn và chính xác hơn.
