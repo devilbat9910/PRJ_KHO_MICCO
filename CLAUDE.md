@@ -57,3 +57,9 @@
 - **Never hallucinate libraries or functions** – only use known, verified Python packages.
 - **Always confirm file paths and module names** exist before referencing them in code or tests.
 - **Never delete or overwrite existing code** unless explicitly instructed to or if part of a task from `TASK.md`.
+
+---
+**Ghi chú Phiên làm việc (24/07/2025):**
+- Đã thực hiện một phiên gỡ lỗi sâu rộng đối với logic xử lý `Mã kho`.
+- Giải pháp cuối cùng là nâng cấp hàm `normalizeObjectKeys` để xử lý key một cách linh hoạt (case-insensitive và trim).
+- Đã cập nhật `REFACTOR_PLAN.md` và thêm `specification.md` vào kho lưu trữ.
